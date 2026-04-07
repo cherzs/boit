@@ -1,0 +1,25 @@
+{
+  "cookies": [
+    {
+      "name": "session",
+      "value": "GANTI_DENGAN_SESSION_COOKIE_ANDA",
+      "domain": ".zeusx.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "remember_me",
+      "value": "GANTI_DENGAN_REMEMBER_ME_COOKIE",
+      "domain": ".zeusx.com",
+      "path": "/",
+      "expires": 1769999999,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}
