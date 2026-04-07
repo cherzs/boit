@@ -727,24 +727,50 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
     _log(log_cb, "SCAN STARTING - Checking session...")
     _log(log_cb, "="*50)
     
-    # Check if auth.json exists (only needed for /my-listing, not public store)
-    if not store_url and not has_session():
-        _log(log_cb, "❌ ERROR: No session found!")
-        _log(log_cb, "Please login first before scanning your products")
-        _log(log_cb, "Click 'Login' or 'Import from Chrome/Edge' button")
-        return []
+    session_valid = False
+    need_login = False
     
-    # Validate session for my-listing
-    if not store_url and not validate_session(log_cb):
-        _log(log_cb, "\n❌ ERROR: Session is invalid or expired!")
-        _log(log_cb, "Please re-login or import session again")
-        return []
+    # Check if auth.json exists (only needed for /my-listing, not public store)
+    if not store_url:
+        if has_session():
+            session_valid = validate_session(log_cb)
+            if not session_valid:
+                _log(log_cb, "⚠️ Session expired - will need to re-login")
+                need_login = True
+        else:
+            _log(log_cb, "⚠️ No session - will need to login")
+            need_login = True
     
     _log(log_cb, "="*50)
     _log(log_cb, "Starting full product scan...")
-
+    
+    # Open browser (visible like login)
     with sync_playwright() as pw:
-        browser, context, page = _new_context(pw, headless=headless)
+        browser = pw.chromium.launch(headless=False)
+        w = random.randint(1280, 1920)
+        h = random.randint(800, 1080)
+        
+        kwargs = {"viewport": {"width": w, "height": h}}
+        if session_valid and has_session():
+            kwargs["storage_state"] = AUTH_FILE
+        
+        context = browser.new_context(**kwargs)
+        page = context.new_page()
+        if HAS_STEALTH:
+            stealth_sync(page)
+        
+        # Handle login if needed
+        if need_login:
+            _log(log_cb, "🌐 Opening login page...")
+            page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
+            
+            if not _wait_for_login_in_browser(page, log_cb, None):
+                _log(log_cb, "❌ Login failed or cancelled")
+                browser.close()
+                return []
+            
+            save_session(context)
+            _log(log_cb, "💾 Session saved")
 
         try:
             # Get product links from store URL or My Listing
@@ -1156,6 +1182,34 @@ def relist_product(product: dict, headless: bool = False, log_cb=None) -> bool:
 # MANUAL RUN LOGIC
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_seconds=300):
+    """
+    Wait for user to login manually in the opened browser.
+    Returns True if login successful, False if timeout or stopped.
+    """
+    _log(log_cb, "⏳ Waiting for you to login...")
+    _log(log_cb, "   Please login in the browser window")
+    
+    for i in range(timeout_seconds):
+        if stop_event and stop_event.is_set():
+            return False
+        
+        time.sleep(1)
+        current_url = page.url
+        
+        # Check if already logged in
+        if "/my-listing" in current_url or "/dashboard" in current_url:
+            _log(log_cb, "✅ Login detected!")
+            return True
+        
+        # Log every 10 seconds
+        if i % 10 == 0 and i > 0:
+            _log(log_cb, f"   Still waiting... ({i}s)")
+    
+    _log(log_cb, "❌ Login timeout after 5 minutes")
+    return False
+
+
 def run_once(
     headless: bool = False,
     log_cb=None,
@@ -1163,31 +1217,27 @@ def run_once(
 ):
     """
     Manual run: Opens browser window (like login) and re-lists all products.
-    Re-lists each product (delete -> create) in the same browser window.
+    If session expired, will open login page for manual re-login.
     """
     if stop_event is None:
         stop_event = threading.Event()
 
-    # Check if auth.json exists and is valid
+    # Check if auth.json exists
     _log(log_cb, "="*50)
     _log(log_cb, "BOT STARTING - Checking session...")
     _log(log_cb, "="*50)
     
-    if not has_session():
-        _log(log_cb, "❌ ERROR: No session found!")
-        _log(log_cb, "Please login first:")
-        _log(log_cb, "  1. Click 'Login' or 'Import from Chrome/Edge' button")
-        _log(log_cb, "  2. Or manually create auth.json file")
-        _log(log_cb, "\nSee CARA_LOGIN_MANUAL.md for help")
-        return
+    session_valid = False
+    need_login = False
     
-    # Validate session by testing it
-    if not validate_session(log_cb):
-        _log(log_cb, "\n❌ ERROR: Session is invalid or expired!")
-        _log(log_cb, "Please re-login or import session again")
-        return
-    
-    _log(log_cb, "="*50)
+    if has_session():
+        session_valid = validate_session(log_cb)
+        if not session_valid:
+            _log(log_cb, "⚠️ Session expired - will need to re-login")
+            need_login = True
+    else:
+        _log(log_cb, "⚠️ No session found - will need to login")
+        need_login = True
     
     products = load_products()
     enabled = [p for p in products if p.get("enabled", True)]
@@ -1207,15 +1257,52 @@ def run_once(
         h = random.randint(800, 1080)
         
         kwargs = {"viewport": {"width": w, "height": h}}
-        if has_session():
+        
+        # Only use storage_state if session is valid
+        if session_valid and has_session():
             kwargs["storage_state"] = AUTH_FILE
+            _log(log_cb, "✅ Using saved session")
         
         context = browser.new_context(**kwargs)
         page = context.new_page()
         if HAS_STEALTH:
             stealth_sync(page)
         
-        _log(log_cb, "✅ Browser opened. Starting re-listing process...")
+        # If need login, open login page and wait
+        if need_login:
+            _log(log_cb, "🌐 Opening login page...")
+            page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
+            
+            if not _wait_for_login_in_browser(page, log_cb, stop_event):
+                _log(log_cb, "❌ Login failed or cancelled")
+                browser.close()
+                return
+            
+            # Save the new session
+            save_session(context)
+            _log(log_cb, "💾 Session saved for future use")
+        else:
+            # Try to go to my-listing to verify session works
+            try:
+                page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=15_000)
+                _random_delay(2, 3)
+                
+                # Check if redirected to login (session actually expired)
+                if "/login" in page.url:
+                    _log(log_cb, "⚠️ Session expired in browser - redirecting to login...")
+                    page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
+                    
+                    if not _wait_for_login_in_browser(page, log_cb, stop_event):
+                        _log(log_cb, "❌ Login failed or cancelled")
+                        browser.close()
+                        return
+                    
+                    save_session(context)
+                    _log(log_cb, "💾 New session saved")
+            except Exception as e:
+                _log(log_cb, f"⚠️ Error checking session: {e}")
+        
+        _log(log_cb, "✅ Ready! Starting re-listing process...")
         
         max_retries = 3
 
