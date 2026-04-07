@@ -271,37 +271,100 @@ if products:
 
     for i, p in enumerate(products):
         with st.container():
-            cols = st.columns([0.5, 4, 1.5, 2, 1.5])
+            # Check if in edit mode
+            edit_key = f"edit_mode_{i}"
+            if edit_key not in st.session_state:
+                st.session_state[edit_key] = False
+            
+            is_editing = st.session_state[edit_key]
+            
+            if is_editing:
+                # Edit mode - show input fields
+                cols = st.columns([0.5, 4, 1.5, 2, 1])
+                
+                with cols[0]:
+                    enabled = st.checkbox(
+                        "Enable",
+                        value=p.get("enabled", True),
+                        key=f"enable_edit_{i}",
+                        label_visibility="collapsed",
+                        disabled=True,
+                    )
+                
+                with cols[1]:
+                    new_title = st.text_input(
+                        "Product Name",
+                        value=p.get("title", ""),
+                        key=f"title_input_{i}",
+                        label_visibility="collapsed",
+                    )
+                
+                with cols[2]:
+                    new_price = st.text_input(
+                        "Price",
+                        value=str(p.get("price", "")),
+                        key=f"price_input_{i}",
+                        label_visibility="collapsed",
+                    )
+                
+                with cols[3]:
+                    st.caption("Editing...")
+                
+                with cols[4]:
+                    save_col, cancel_col = st.columns(2)
+                    with save_col:
+                        if st.button("✅", key=f"save_{i}", help="Save changes"):
+                            products[i]["title"] = new_title
+                            try:
+                                products[i]["price"] = float(new_price)
+                            except:
+                                pass
+                            st.session_state[edit_key] = False
+                            updated = True
+                    with cancel_col:
+                        if st.button("❌", key=f"cancel_{i}", help="Cancel"):
+                            st.session_state[edit_key] = False
+                            st.rerun()
+            
+            else:
+                # Normal mode - show product info
+                cols = st.columns([0.5, 4, 1.5, 2, 1.5])
 
-            with cols[0]:
-                enabled = st.checkbox(
-                    "Enable",
-                    value=p.get("enabled", True),
-                    key=f"enable_{i}",
-                    label_visibility="collapsed",
-                )
-                if enabled != p.get("enabled", True):
-                    products[i]["enabled"] = enabled
-                    updated = True
+                with cols[0]:
+                    enabled = st.checkbox(
+                        "Enable",
+                        value=p.get("enabled", True),
+                        key=f"enable_{i}",
+                        label_visibility="collapsed",
+                    )
+                    if enabled != p.get("enabled", True):
+                        products[i]["enabled"] = enabled
+                        updated = True
 
-            with cols[1]:
-                title = p.get("title", "Untitled")
-                st.markdown(f"**{title[:80]}**")
+                with cols[1]:
+                    title = p.get("title", "Untitled")
+                    st.markdown(f"**{title[:80]}**")
 
-            with cols[2]:
-                price = p.get("price", "—")
-                st.markdown(f"💰 ${price}")
+                with cols[2]:
+                    price = p.get("price", "—")
+                    st.markdown(f"💰 ${price}")
 
-            with cols[3]:
-                last = p.get("last_relisted")
-                if last:
-                    st.caption(f"🔄 {last[:16]}")
-                else:
-                    st.caption("🔄 Never")
+                with cols[3]:
+                    last = p.get("last_relisted")
+                    if last:
+                        st.caption(f"🔄 {last[:16]}")
+                    else:
+                        st.caption("🔄 Never")
 
-            with cols[4]:
-                n_imgs = len(p.get("local_images", []))
-                st.caption(f"🖼️ {n_imgs} img")
+                with cols[4]:
+                    edit_col, img_col = st.columns([1, 1])
+                    with edit_col:
+                        if st.button("✏️", key=f"edit_{i}", help="Edit product"):
+                            st.session_state[edit_key] = True
+                            st.rerun()
+                    with img_col:
+                        n_imgs = len(p.get("local_images", []))
+                        st.caption(f"🖼️ {n_imgs}")
 
     if updated:
         engine.save_products(products)
