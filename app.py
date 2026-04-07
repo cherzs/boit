@@ -156,38 +156,50 @@ with st.sidebar:
     st.markdown("## 🔐 Session")
 
     if engine.has_session():
-        st.success("Session active ✅")
+        st.success("✅ Session active")
     else:
-        st.warning("No session — login first")
+        st.warning("⚠️ No session — login first")
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        if st.button("🌐 Login", use_container_width=True):
-            with st.spinner("Opening browser…"):
-                engine.open_login_browser(log_cb=add_log)
-            st.rerun()
-    with col_b:
-        if engine.has_session():
-            if st.button("🗑️ Logout", use_container_width=True):
-                os.remove(engine.AUTH_FILE)
-                st.rerun()
+    st.markdown("### Login Options:")
     
-    # Import from Chrome button
+    # Option 1: Auto-fill login
+    if st.button("🚀 Start with Auto-Fill", use_container_width=True, type="primary"):
+        # Trigger bot start which will open browser with auto-fill
+        st.info("Click '▶️ Start Bot' button in main panel")
+    
+    # Option 2: Import from Chrome
+    st.markdown("<div style='margin:5px 0;'></div>", unsafe_allow_html=True)
     if st.button("📥 Import from Chrome/Edge", use_container_width=True):
         with st.spinner("Importing session from browser…"):
             success = engine.import_session_from_chrome(log_cb=add_log)
         if success:
-            st.success("Session imported!")
+            st.success("✅ Session imported!")
             time.sleep(1)
             st.rerun()
         else:
-            st.error("Failed to import. Make sure you are logged in to ZeusX in Chrome/Edge.")
+            st.error("❌ Failed to import. Make sure you are logged in to ZeusX in Chrome/Edge.")
     
-    # Warning about Google Login
+    # Option 3: Manual login
+    st.markdown("<div style='margin:5px 0;'></div>", unsafe_allow_html=True)
+    if st.button("🌐 Open ZeusX Login", use_container_width=True):
+        with st.spinner("Opening browser…"):
+            engine.open_login_browser(log_cb=add_log)
+        st.rerun()
+    
+    # Logout button
+    if engine.has_session():
+        st.markdown("<div style='margin:5px 0;'></div>", unsafe_allow_html=True)
+        if st.button("🗑️ Logout / Clear Session", use_container_width=True):
+            os.remove(engine.AUTH_FILE)
+            st.rerun()
+    
+    # Info box
     st.markdown("""
-    <div style="background-color:#fff3cd; color:#856404; padding:10px; border-radius:5px; font-size:0.85rem; margin-top:10px;">
-    ⚠️ <b>Catatan:</b> Google Login mungkin error di browser bot.<br>
-    Gunakan <b>Email/Password</b> biasa, atau pakai "Import from Chrome/Edge"
+    <div style="background-color:#e7f3ff; color:#0066cc; padding:10px; border-radius:5px; font-size:0.8rem; margin-top:15px; border-left:3px solid #0066cc;">
+    <b>💡 Tips:</b><br>
+    • <b>Auto-Fill:</b> Isi config.json lalu Start Bot<br>
+    • <b>Import:</b> Login di Chrome dulu, lalu klik Import<br>
+    • <b>Manual:</b> Buka ZeusX login di browser biasa
     </div>
     """, unsafe_allow_html=True)
 
