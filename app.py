@@ -257,28 +257,50 @@ with c4:
 # ═══════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="sec">📦 Products</div>', unsafe_allow_html=True)
 
-scan_col, info_col = st.columns([1, 3])
-with scan_col:
+# Scan options
+scan_tab1, scan_tab2 = st.tabs(["📍 Scan Public Store (No Login)", "🔐 Scan My Products (Need Login)"])
+
+with scan_tab1:
+    st.markdown("**Scan dari public store link** - Tidak perlu login")
+    public_url = st.text_input(
+        "Public Store URL",
+        value=seller_url if seller_url else "",
+        placeholder="https://www.zeusx.com/seller/username-123456",
+        key="public_store_url"
+    )
+    
+    if st.button("🔍 Scan Public Store", use_container_width=True, disabled=st.session_state.running):
+        if not public_url.strip():
+            st.error("Masukkan Public Store URL!")
+        else:
+            with st.spinner("Scanning public store…"):
+                scanned = engine.scan_all_products(
+                    store_url=public_url,
+                    log_cb=add_log,
+                )
+                products = scanned
+                # Update seller_url in config
+                cfg["seller_url"] = public_url
+                engine.save_config(cfg)
+            st.rerun()
+
+with scan_tab2:
+    st.markdown("**Scan dari My Listing** - Perlu login ke ZeusX")
     if st.button("🔍 Scan My Products", use_container_width=True, disabled=st.session_state.running):
         if not engine.has_session():
-            st.error("Please login first!")
-        elif not seller_url.strip():
-            st.error("Enter your Seller Profile URL in the sidebar!")
+            st.error("Please login first! Klik 'Login' di sidebar.")
         else:
-            with st.spinner("Scanning your products on ZeusX…"):
+            with st.spinner("Scanning your products…"):
                 scanned = engine.scan_all_products(
-                    seller_url=seller_url,
-                    headless=headless,
+                    store_url="",  # Empty = use my-listing
                     log_cb=add_log,
                 )
                 products = scanned
             st.rerun()
 
-with info_col:
-    if products:
-        st.caption(f"Found {len(products)} product(s). Toggle which ones to auto re-list.")
-    else:
-        st.caption("No products scanned yet. Click **Scan My Products** to fetch your listings.")
+# Info message
+if products:
+    st.success(f"✅ Found {len(products)} product(s). Toggle which ones to auto re-list.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -871,18 +871,26 @@ def scrape_product_detail(page, product_url: str, log_cb=None) -> dict:
 
 def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") -> list:
     """
-    Full scrape pipeline. If store_url is given, scrape from public seller page.
-    Otherwise scrape from /my-listing dashboard.
+    Full scrape pipeline. If store_url is given, scrape from public seller page (no login needed).
+    Otherwise scrape from /my-listing dashboard (login required).
     """
+    is_public_scan = bool(store_url and store_url.strip())
+    
     _log(log_cb, "="*50)
-    _log(log_cb, "SCAN STARTING - Checking session...")
+    if is_public_scan:
+        _log(log_cb, "📍 PUBLIC STORE SCAN")
+        _log(log_cb, f"   URL: {store_url}")
+        _log(log_cb, "   ℹ️  No login required")
+    else:
+        _log(log_cb, "🔐 MY LISTING SCAN")
+        _log(log_cb, "   ℹ️  Login required")
     _log(log_cb, "="*50)
     
     session_valid = False
     need_login = False
     
     # Check if auth.json exists (only needed for /my-listing, not public store)
-    if not store_url:
+    if not is_public_scan:
         if has_session():
             session_valid = validate_session(log_cb)
             if not session_valid:
@@ -892,7 +900,6 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
             _log(log_cb, "⚠️ No session - will need to login")
             need_login = True
     
-    _log(log_cb, "="*50)
     _log(log_cb, "Starting full product scan...")
     
     # Open browser (visible like login)
@@ -910,7 +917,7 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
         if HAS_STEALTH:
             stealth_sync(page)
         
-        # Handle login if needed
+        # Handle login if needed (only for my-listing)
         if need_login:
             _log(log_cb, "🌐 Opening login page...")
             page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
@@ -950,8 +957,10 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
             save_products(products)
             _log(log_cb, f"Done: scanned {len(products)} products, saved to products.json")
 
-            # Refresh session
-            save_session(context)
+            # Refresh session (only for my-listing scan)
+            if not is_public_scan:
+                save_session(context)
+                _log(log_cb, "💾 Session refreshed")
 
             return products
 
