@@ -259,10 +259,10 @@ def import_session_from_chrome(log_cb=None):
     import glob
     
     _log(log_cb, "="*50)
-    _log(log_cb, "📥 Importing session from browser...")
+    _log(log_cb, "📥 Importing session from Chrome/Edge...")
     _log(log_cb, "="*50)
-    _log(log_cb, "⚠️  Make sure you are LOGGED IN to ZeusX in Chrome/Edge/Brave")
-    _log(log_cb, "   (Open browser → Go to zeusx.com → Login → Keep browser open)")
+    _log(log_cb, "⚠️  Make sure you are LOGGED IN to ZeusX in Chrome/Edge")
+    _log(log_cb, "   (Open Chrome/Edge → Go to zeusx.com → Login → Keep browser open)")
     _log(log_cb, "")
     
     home = os.path.expanduser("~")
@@ -298,24 +298,9 @@ def import_session_from_chrome(log_cb=None):
                 profile_name = os.path.basename(profile)
                 cookie_paths.append((f"Edge ({profile_name})", cookies_file))
     
-    # Brave browser paths - multiple profiles
-    brave_base = os.path.join(home, r"AppData\Local\BraveSoftware\Brave-Browser\User Data")
-    if os.path.exists(brave_base):
-        # Default profile
-        default_cookies = os.path.join(brave_base, r"Default\Network\Cookies")
-        if os.path.exists(default_cookies):
-            cookie_paths.append(("Brave (Default)", default_cookies))
-        
-        # Other profiles
-        for profile in glob.glob(os.path.join(brave_base, "Profile *")):
-            cookies_file = os.path.join(profile, "Network", "Cookies")
-            if os.path.exists(cookies_file):
-                profile_name = os.path.basename(profile)
-                cookie_paths.append((f"Brave ({profile_name})", cookies_file))
-    
     if not cookie_paths:
-        _log(log_cb, "❌ No supported browser found!")
-        _log(log_cb, "   Make sure Chrome, Edge, or Brave is installed")
+        _log(log_cb, "❌ Chrome or Edge not found!")
+        _log(log_cb, "   Make sure Chrome or Edge is installed")
         return False
     
     _log(log_cb, f"Found {len(cookie_paths)} browser profile(s)")
@@ -375,11 +360,11 @@ def import_session_from_chrome(log_cb=None):
         _log(log_cb, "❌ FAILED TO IMPORT SESSION")
         _log(log_cb, "="*50)
         _log(log_cb, "\n🔧 Troubleshooting:")
-        _log(log_cb, "1. Open Chrome/Edge/Brave browser")
+        _log(log_cb, "1. Open Chrome/Edge browser")
         _log(log_cb, "2. Go to https://www.zeusx.com")
         _log(log_cb, "3. Login with your username/password")
         _log(log_cb, "4. DON'T close the browser")
-        _log(log_cb, "5. Click 'Import from Browser' button again")
+        _log(log_cb, "5. Click 'Import from Chrome/Edge' button again")
         _log(log_cb, "\n💡 Alternative: Use '▶️ Start Bot' with username/password")
         return False
     

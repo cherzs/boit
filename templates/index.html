@@ -899,7 +899,7 @@
                 </div>
                 
                 <div class="btn-group" style="margin-bottom:1.2rem">
-                    <button class="btn btn-outline" id="importBtn" onclick="doImport()" title="Import session from Chrome/Edge/Brave browser">📥 Import from Browser</button>
+                    <button class="btn btn-outline" id="importBtn" onclick="doImport()" title="Import session from Chrome/Edge browser">📥 Import from Chrome/Edge</button>
                 </div>
 
                 <hr style="border-color:var(--border); margin:1rem 0">
@@ -1267,7 +1267,7 @@
 
         async function doImport() {
             document.getElementById('importBtn').disabled = true;
-            showToast('Importing session from browser...', 'info');
+            showToast('Importing session from Chrome/Edge...', 'info');
             const res = await api('import', 'POST');
             if (res && res.success) {
                 showToast('Session imported successfully!', 'success');
@@ -1275,7 +1275,7 @@
                 const s = await api('status');
                 if (s) updateStatus(s);
             } else {
-                showToast('Import failed. Make sure you are logged in to ZeusX in Chrome/Edge/Brave.', 'error');
+                showToast('Import failed. Make sure you are logged in to ZeusX in Chrome/Edge.', 'error');
             }
             document.getElementById('importBtn').disabled = false;
         }
