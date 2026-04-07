@@ -135,6 +135,28 @@ Bot membutuhkan file konfigurasi agar bisa login ke ZeusX.
 
 ---
 
+### **Step 6: Login ke ZeusX**
+
+Pilih salah satu cara login:
+
+#### **Opsi A: Login Otomatis (Import dari Chrome/Edge)**
+1. Login ke ZeusX di browser Chrome/Edge kamu (https://zeusx.com/login)
+2. Jangan logout, biarkan tetap login
+3. Buka dashboard bot → klik tombol **"📥 Import from Chrome/Edge"**
+4. Session akan otomatis tersimpan
+
+#### **Opsi B: Login Manual (Copy Cookie)**
+Jika opsi A tidak berfungsi:
+1. Copy file `auth.json.template` dan rename jadi `auth.json`
+2. Buka ZeusX di browser → Login → Buka DevTools (F12)
+3. Copy cookie session dari browser
+4. Paste ke file `auth.json` (lihat panduan lengkap di `CARA_LOGIN_MANUAL.md`)
+5. Save file
+
+> ⚠️ **Catatan**: Google memblokir login otomatis dari browser automation. Jika pakai Google Login, gunakan **Opsi B**.
+
+---
+
 ## 🕹 Cara Menjalankan Bot
 
 Setelah instalasi selesai, ada beberapa cara untuk menjalankan bot:
