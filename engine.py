@@ -1188,11 +1188,14 @@ def relist_product(product: dict, headless: bool = False, log_cb=None) -> bool:
 def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_seconds=300):
     """
     Wait for user to login manually in the opened browser.
+    Handles CAPTCHA detection - tells user to solve it manually.
     Returns True if login successful, False if timeout or stopped.
     """
     _log(log_cb, "⏳ Waiting for you to login...")
     _log(log_cb, "   ⚠️  Use Email/Password (NOT Google Login)")
     _log(log_cb, "   Google akan error 'This browser is not secure'")
+    
+    captcha_warned = False
     
     for i in range(timeout_seconds):
         if stop_event and stop_event.is_set():
@@ -1206,9 +1209,19 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
             _log(log_cb, "✅ Login detected!")
             return True
         
+        # Detect CAPTCHA and warn user
+        if not captcha_warned and _detect_captcha(page):
+            _log(log_cb, "🤖 CAPTCHA detected!")
+            _log(log_cb, "   Please solve the CAPTCHA manually in the browser")
+            _log(log_cb, "   Then complete the login")
+            captcha_warned = True
+        
         # Log every 10 seconds
         if i % 10 == 0 and i > 0:
-            _log(log_cb, f"   Still waiting... ({i}s)")
+            if captcha_warned:
+                _log(log_cb, f"   Waiting for login after CAPTCHA... ({i}s)")
+            else:
+                _log(log_cb, f"   Still waiting... ({i}s)")
     
     _log(log_cb, "❌ Login timeout after 5 minutes")
     return False
