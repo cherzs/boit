@@ -1157,13 +1157,13 @@ def relist_product(product: dict, headless: bool = False, log_cb=None) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def run_once(
-    headless: bool,
+    headless: bool = False,
     log_cb=None,
     stop_event: threading.Event = None,
 ):
     """
-    Manual run: Iterates through all enabled products exactly once.
-    Re-lists each product (delete -> create).
+    Manual run: Opens browser window (like login) and re-lists all products.
+    Re-lists each product (delete -> create) in the same browser window.
     """
     if stop_event is None:
         stop_event = threading.Event()
@@ -1196,48 +1196,127 @@ def run_once(
         _log(log_cb, "WARNING: No products enabled for re-listing")
         return
 
-    _log(log_cb, f"Bot started manual run - {len(enabled)} product(s)")
+    _log(log_cb, f"Bot started - {len(enabled)} product(s) to re-list")
+    _log(log_cb, "Opening browser window...")
 
-    max_retries = 3
+    # Open ONE browser window for all products (like login)
+    with sync_playwright() as pw:
+        # Force headless=False so user can see the browser
+        browser = pw.chromium.launch(headless=False)
+        w = random.randint(1280, 1920)
+        h = random.randint(800, 1080)
+        
+        kwargs = {"viewport": {"width": w, "height": h}}
+        if has_session():
+            kwargs["storage_state"] = AUTH_FILE
+        
+        context = browser.new_context(**kwargs)
+        page = context.new_page()
+        if HAS_STEALTH:
+            stealth_sync(page)
+        
+        _log(log_cb, "✅ Browser opened. Starting re-listing process...")
+        
+        max_retries = 3
 
-    for idx, product in enumerate(enabled):
-        if stop_event.is_set():
-            _log(log_cb, "Run forcibly stopped by user.")
-            break
-
-        _log(log_cb, f"── Re-listing {idx+1}/{len(enabled)}: {product.get('title', '?')[:60]} ──")
-
-        success = False
-        for attempt in range(1, max_retries + 1):
-            if stop_event.is_set():
-                break
-
-            try:
-                success = relist_product(product, headless=headless, log_cb=log_cb)
-
-                if success:
-                    # Update last re-listed timestamp
-                    product["last_relisted"] = datetime.now().isoformat()
-                    # Persist updated product data
-                    all_products = load_products()
-                    for p in all_products:
-                        if p.get("url") == product.get("url"):
-                            p["last_relisted"] = product["last_relisted"]
-                    save_products(all_products)
+        try:
+            for idx, product in enumerate(enabled):
+                if stop_event.is_set():
+                    _log(log_cb, "Run stopped by user.")
                     break
 
-            except Exception as e:
-                _log(log_cb, f"   ERROR: Attempt {attempt}/{max_retries}: {e}")
-                if attempt < max_retries:
-                    wait = 10 * attempt
-                    _log(log_cb, f"   Retrying in {wait}s...")
-                    _interruptible_sleep(wait, stop_event)
+                _log(log_cb, f"── Re-listing {idx+1}/{len(enabled)}: {product.get('title', '?')[:60]} ──")
 
-        if not success and not stop_event.is_set():
-            _log(log_cb, "   All retries exhausted, moving to next product")
+                success = False
+                for attempt in range(1, max_retries + 1):
+                    if stop_event.is_set():
+                        break
 
-        # Small delay between products
-        if not stop_event.is_set() and idx < len(enabled) - 1:
-            _interruptible_sleep(5, stop_event)
+                    try:
+                        # Step 1: Delete old listing
+                        deleted = delete_listing(page, product, log_cb)
+                        if not deleted:
+                            _log(log_cb, "   Delete failed/skipped, will try create anyway")
+                        
+                        _random_delay(2, 4)
 
-    _log(log_cb, "Manual run completed.")
+                        # Step 2: Create new listing
+                        success = create_listing(page, product, log_cb)
+
+                        if success:
+                            # Update timestamp
+                            product["last_relisted"] = datetime.now().isoformat()
+                            all_products = load_products()
+                            for p in all_products:
+                                if p.get("url") == product.get("url"):
+                                    p["last_relisted"] = product["last_relisted"]
+                            save_products(all_products)
+                            _log(log_cb, "✅ Product re-listed successfully!")
+                            break
+
+                    except Exception as e:
+                        _log(log_cb, f"   ERROR: Attempt {attempt}/{max_retries}: {e}")
+                        if attempt < max_retries:
+                            wait = 10 * attempt
+                            _log(log_cb, f"   Retrying in {wait}s...")
+                            _interruptible_sleep(wait, stop_event)
+
+                if not success and not stop_event.is_set():
+                    _log(log_cb, "   ❌ All retries failed, moving to next product")
+
+                # Refresh session after each product
+                save_session(context)
+
+                # Delay between products
+                if not stop_event.is_set() and idx < len(enabled) - 1:
+                    _interruptible_sleep(5, stop_event)
+
+            _log(log_cb, "✅ Manual run completed!")
+            
+        finally:
+            browser.close()
+            _log(log_cb, "Browser closed.")
+
+
+
+def run_loop(
+    interval_minutes: int = 60,
+    headless: bool = False,
+    log_cb=None,
+    stop_event: threading.Event = None,
+):
+    """
+    Run bot in a loop with specified interval between cycles.
+    Each cycle runs run_once() which opens a browser window.
+    """
+    if stop_event is None:
+        stop_event = threading.Event()
+    
+    cycle_count = 0
+    
+    while not stop_event.is_set():
+        cycle_count += 1
+        _log(log_cb, f"\n{'='*50}")
+        _log(log_cb, f"CYCLE #{cycle_count} STARTING")
+        _log(log_cb, f"{'='*50}")
+        
+        # Run one cycle (opens browser, re-lists products, closes browser)
+        run_once(headless=headless, log_cb=log_cb, stop_event=stop_event)
+        
+        if stop_event.is_set():
+            break
+        
+        # Wait for next cycle
+        _log(log_cb, f"\n⏳ Waiting {interval_minutes} minutes until next cycle...")
+        _log(log_cb, f"   (Bot will open browser again when cycle starts)\n")
+        
+        # Sleep in small chunks to allow stopping
+        sleep_seconds = interval_minutes * 60
+        chunk_size = 1  # Check every second
+        
+        for _ in range(0, sleep_seconds, chunk_size):
+            if stop_event.is_set():
+                break
+            time.sleep(chunk_size)
+    
+    _log(log_cb, "\n🛑 Bot loop stopped by user.")

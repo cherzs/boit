@@ -197,13 +197,11 @@ with st.sidebar:
         value=cfg.get("interval_minutes", 10),
         step=1,
     )
-    headless = st.toggle("Headless mode", value=cfg.get("headless", False))
-
     # Auto-save config
     engine.save_config({
         "seller_url": seller_url,
         "interval_minutes": interval,
-        "headless": headless,
+        "headless": False,  # Always show browser window
     })
 
 
@@ -391,6 +389,7 @@ btn1, btn2, _ = st.columns([1, 1, 3])
 
 with btn1:
     if not st.session_state.running:
+        st.info("ℹ️ Bot will open a browser window to re-list products")
         if st.button("▶️ Start Bot", type="primary", use_container_width=True):
             enabled_products = [p for p in products if p.get("enabled", True)]
             if not engine.has_session():
@@ -405,7 +404,6 @@ with btn1:
                     target=engine.run_loop,
                     kwargs={
                         "interval_minutes": interval,
-                        "headless": headless,
                         "log_cb": add_log,
                         "stop_event": st.session_state.stop_event,
                     },
@@ -413,7 +411,7 @@ with btn1:
                 )
                 t.start()
                 st.session_state.worker_thread = t
-                add_log(f"[{datetime.now().strftime('%H:%M:%S')}] 🟢 Bot started")
+                add_log(f"[{datetime.now().strftime('%H:%M:%S')}] 🟢 Bot started - Browser will open")
                 st.rerun()
 
 with btn2:
