@@ -262,6 +262,28 @@ def api_toggle_product():
     return jsonify({"error": "Product not found"}), 404
 
 
+@app.route("/api/product/update", methods=["POST"])
+def api_update_product():
+    data = request.json or {}
+    url = data.get("url", "")
+    new_title = data.get("title", "").strip()
+    new_price = data.get("price", 0)
+    
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+    if not new_title:
+        return jsonify({"error": "Title required"}), 400
+    
+    products = engine.load_products()
+    for p in products:
+        if p.get("url") == url:
+            p["title"] = new_title
+            p["price"] = float(new_price)
+            engine.save_products(products)
+            return jsonify({"ok": True, "title": new_title, "price": new_price})
+    return jsonify({"error": "Product not found"}), 404
+
+
 @app.route("/api/logs/clear", methods=["POST"])
 def api_clear_logs():
     bot_state["logs"] = []
