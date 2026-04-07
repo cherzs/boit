@@ -197,103 +197,169 @@ def open_login_browser(log_cb=None):
 def import_session_from_chrome(log_cb=None):
     """
     Import cookies from Chrome/Edge browser to create auth.json
+    Tries multiple profiles and paths to find ZeusX cookies.
     """
     import sqlite3
     import shutil
     import tempfile
+    import glob
     
-    _log(log_cb, "Attempting to import session from Chrome/Edge...")
+    _log(log_cb, "="*50)
+    _log(log_cb, "📥 Importing session from Chrome/Edge...")
+    _log(log_cb, "="*50)
+    _log(log_cb, "⚠️  Make sure you are LOGGED IN to ZeusX in Chrome/Edge")
+    _log(log_cb, "   (Open Chrome/Edge → Go to zeusx.com → Login → Keep browser open)")
+    _log(log_cb, "")
     
-    # Possible Chrome/Edge cookie paths on Windows
-    cookie_paths = []
     home = os.path.expanduser("~")
+    cookie_paths = []
     
-    # Chrome paths
-    chrome_path = os.path.join(home, r"AppData\Local\Google\Chrome\User Data\Default\Network\Cookies")
-    if os.path.exists(chrome_path):
-        cookie_paths.append(("Chrome", chrome_path))
+    # Chrome paths - multiple profiles
+    chrome_base = os.path.join(home, r"AppData\Local\Google\Chrome\User Data")
+    if os.path.exists(chrome_base):
+        # Default profile
+        default_cookies = os.path.join(chrome_base, r"Default\Network\Cookies")
+        if os.path.exists(default_cookies):
+            cookie_paths.append(("Chrome (Default)", default_cookies))
+        
+        # Other profiles
+        for profile in glob.glob(os.path.join(chrome_base, "Profile *")):
+            cookies_file = os.path.join(profile, "Network", "Cookies")
+            if os.path.exists(cookies_file):
+                profile_name = os.path.basename(profile)
+                cookie_paths.append((f"Chrome ({profile_name})", cookies_file))
     
-    # Edge paths
-    edge_path = os.path.join(home, r"AppData\Local\Microsoft\Edge\User Data\Default\Network\Cookies")
-    if os.path.exists(edge_path):
-        cookie_paths.append(("Edge", edge_path))
+    # Edge paths - multiple profiles
+    edge_base = os.path.join(home, r"AppData\Local\Microsoft\Edge\User Data")
+    if os.path.exists(edge_base):
+        # Default profile
+        default_cookies = os.path.join(edge_base, r"Default\Network\Cookies")
+        if os.path.exists(default_cookies):
+            cookie_paths.append(("Edge (Default)", default_cookies))
+        
+        # Other profiles
+        for profile in glob.glob(os.path.join(edge_base, "Profile *")):
+            cookies_file = os.path.join(profile, "Network", "Cookies")
+            if os.path.exists(cookies_file):
+                profile_name = os.path.basename(profile)
+                cookie_paths.append((f"Edge ({profile_name})", cookies_file))
     
     if not cookie_paths:
-        _log(log_cb, "❌ Chrome or Edge cookies not found")
+        _log(log_cb, "❌ Chrome or Edge not found!")
+        _log(log_cb, "   Make sure Chrome or Edge is installed")
         return False
+    
+    _log(log_cb, f"Found {len(cookie_paths)} browser profile(s)")
+    
+    all_cookies_found = []
     
     for browser_name, cookie_db in cookie_paths:
         try:
-            _log(log_cb, f"Trying {browser_name}...")
+            _log(log_cb, f"\n🔍 Checking {browser_name}...")
             
             # Copy cookies to temp file (because Chrome might have it locked)
             temp_dir = tempfile.gettempdir()
-            temp_cookie = os.path.join(temp_dir, f"{browser_name.lower()}_cookies_temp.db")
-            shutil.copy2(cookie_db, temp_cookie)
+            temp_cookie = os.path.join(temp_dir, f"cookies_temp_{browser_name.replace(' ', '_')}.db")
+            
+            try:
+                shutil.copy2(cookie_db, temp_cookie)
+            except Exception as copy_error:
+                _log(log_cb, f"   ⚠️  Could not read (browser might be in use): {copy_error}")
+                continue
             
             conn = sqlite3.connect(temp_cookie)
             cursor = conn.cursor()
             
             # Query cookies for zeusx.com domain
-            cursor.execute("""
-                SELECT name, value, host_key, path, expires_utc, is_secure, is_httponly
-                FROM cookies 
-                WHERE host_key LIKE '%zeusx%'
-            """)
-            
-            cookies = cursor.fetchall()
-            conn.close()
-            
-            if not cookies:
-                _log(log_cb, f"No ZeusX cookies found in {browser_name}")
-                continue
-            
-            # Convert to Playwright storage state format
-            storage_state = {
-                "cookies": [],
-                "origins": []
-            }
-            
-            for name, value, host_key, path, expires_utc, is_secure, is_httponly in cookies:
-                # Convert Chrome's expires_utc (microseconds since 1601) to Unix timestamp (seconds)
-                if expires_utc and expires_utc != 0:
-                    expires = (expires_utc - 11644473600000000) / 1000000
-                else:
-                    expires = -1
+            try:
+                cursor.execute("""
+                    SELECT name, value, host_key, path, expires_utc, is_secure, is_httponly
+                    FROM cookies 
+                    WHERE host_key LIKE '%zeusx%'
+                """)
                 
-                cookie = {
-                    "name": name,
-                    "value": value,
-                    "domain": host_key,
-                    "path": path or "/",
-                    "expires": expires,
-                    "httpOnly": bool(is_httponly),
-                    "secure": bool(is_secure),
-                    "sameSite": "Lax"
-                }
-                storage_state["cookies"].append(cookie)
+                cookies = cursor.fetchall()
+            except Exception as db_error:
+                _log(log_cb, f"   ⚠️  Database error: {db_error}")
+                cookies = []
             
-            # Save to auth.json
-            with open(AUTH_FILE, 'w', encoding='utf-8') as f:
-                json.dump(storage_state, f, indent=2)
-            
-            _log(log_cb, f"✅ Session imported from {browser_name}! Saved to auth.json")
-            _log(log_cb, f"   Found {len(cookies)} ZeusX cookies")
+            conn.close()
             
             # Cleanup temp file
             try:
                 os.remove(temp_cookie)
             except:
                 pass
-                
-            return True
             
+            if cookies:
+                _log(log_cb, f"   ✅ Found {len(cookies)} ZeusX cookie(s)!")
+                all_cookies_found.extend([(browser_name, c) for c in cookies])
+            else:
+                _log(log_cb, f"   ❌ No ZeusX cookies found")
+                
         except Exception as e:
-            _log(log_cb, f"Error reading {browser_name} cookies: {e}")
+            _log(log_cb, f"   ⚠️  Error: {e}")
             continue
     
-    _log(log_cb, "❌ Failed to import session from any browser")
-    return False
+    if not all_cookies_found:
+        _log(log_cb, "\n" + "="*50)
+        _log(log_cb, "❌ FAILED TO IMPORT SESSION")
+        _log(log_cb, "="*50)
+        _log(log_cb, "\n🔧 Troubleshooting:")
+        _log(log_cb, "1. Open Chrome/Edge browser")
+        _log(log_cb, "2. Go to https://www.zeusx.com")
+        _log(log_cb, "3. Login with your username/password")
+        _log(log_cb, "4. DON'T close the browser")
+        _log(log_cb, "5. Click 'Import from Chrome/Edge' button again")
+        _log(log_cb, "\n💡 Alternative: Use '▶️ Start Bot' with username/password")
+        return False
+    
+    # Use the profile with most cookies
+    best_browser = all_cookies_found[0][0]
+    best_cookies = [c for b, c in all_cookies_found if b == best_browser]
+    
+    _log(log_cb, f"\n📊 Using session from: {best_browser}")
+    
+    # Convert to Playwright storage state format
+    storage_state = {
+        "cookies": [],
+        "origins": []
+    }
+    
+    for name, value, host_key, path, expires_utc, is_secure, is_httponly in best_cookies:
+        # Convert Chrome's expires_utc (microseconds since 1601) to Unix timestamp
+        if expires_utc and expires_utc != 0:
+            expires = (expires_utc - 11644473600000000) / 1000000
+        else:
+            expires = -1
+        
+        cookie = {
+            "name": name,
+            "value": value,
+            "domain": host_key,
+            "path": path or "/",
+            "expires": expires,
+            "httpOnly": bool(is_httponly),
+            "secure": bool(is_secure),
+            "sameSite": "Lax"
+        }
+        storage_state["cookies"].append(cookie)
+    
+    # Save to auth.json
+    try:
+        with open(AUTH_FILE, 'w', encoding='utf-8') as f:
+            json.dump(storage_state, f, indent=2)
+        
+        _log(log_cb, "\n" + "="*50)
+        _log(log_cb, f"✅ SUCCESS! Session imported from {best_browser}")
+        _log(log_cb, f"   Saved {len(best_cookies)} cookie(s) to auth.json")
+        _log(log_cb, "="*50)
+        _log(log_cb, "\n🎉 You can now start the bot!")
+        return True
+        
+    except Exception as e:
+        _log(log_cb, f"❌ Error saving session: {e}")
+        return False
 
 
 def _new_context(pw, headless: bool = False):
@@ -312,20 +378,102 @@ def _new_context(pw, headless: bool = False):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CAPTCHA DETECTION
+# CAPTCHA DETECTION & HANDLING
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _detect_captcha(page) -> bool:
-    for sel in [
-        'iframe[src*="captcha"]', 'iframe[src*="recaptcha"]',
-        'iframe[src*="hcaptcha"]', '#captcha', '.g-recaptcha',
-        '.h-captcha', '[class*="captcha" i]',
-    ]:
+    """Detect if CAPTCHA is present on the page."""
+    captcha_selectors = [
+        # reCAPTCHA
+        'iframe[src*="captcha"]', 
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="google.com/recaptcha"]',
+        '.g-recaptcha',
+        '[class*="recaptcha" i]',
+        '#recaptcha',
+        
+        # hCAPTCHA
+        'iframe[src*="hcaptcha"]',
+        '.h-captcha',
+        '[class*="hcaptcha" i]',
+        
+        # Generic CAPTCHA
+        '#captcha', 
+        '.captcha',
+        '[class*="captcha" i]',
+        '[id*="captcha" i]',
+        
+        # Challenge/Verification indicators
+        '.challenge',
+        '[class*="challenge" i]',
+        '.verify',
+        '.verification',
+        
+        # Cloudflare Turnstile
+        'iframe[src*="challenges.cloudflare"]',
+        '.cf-turnstile',
+        '[class*="turnstile" i]',
+        
+        # ZeusX specific (if any)
+        '[data-captcha]',
+    ]
+    
+    for sel in captcha_selectors:
         try:
-            if page.query_selector(sel):
+            element = page.query_selector(sel)
+            if element and element.is_visible():
                 return True
         except Exception:
             continue
+    
+    # Also check page title or text for CAPTCHA indicators
+    try:
+        page_text = page.inner_text('body', timeout=2000)
+        captcha_keywords = ['captcha', 'recaptcha', 'verify you are human', 
+                           'security check', 'bot check', 'challenge']
+        text_lower = page_text.lower()
+        for keyword in captcha_keywords:
+            if keyword in text_lower:
+                return True
+    except:
+        pass
+    
+    return False
+
+
+def _wait_for_captcha_solved(page, log_cb=None, stop_event=None, timeout_seconds=300):
+    """
+    Wait for user to solve CAPTCHA manually.
+    Returns True if CAPTCHA solved, False if timeout.
+    """
+    _log(log_cb, "🤖 CAPTCHA detected! Waiting for manual solve...")
+    _log(log_cb, "   ⚠️  Please solve the CAPTCHA in the browser window")
+    _log(log_cb, "   (Click 'I'm not a robot' or complete the challenge)")
+    
+    # Wait for CAPTCHA to be solved (disappear from page)
+    for i in range(timeout_seconds):
+        if stop_event and stop_event.is_set():
+            return False
+        
+        time.sleep(1)
+        
+        # Check if CAPTCHA is still present
+        if not _detect_captcha(page):
+            _log(log_cb, "✅ CAPTCHA solved! Continuing...")
+            _random_delay(1, 2)  # Small delay after solve
+            return True
+        
+        # Log every 10 seconds
+        if i % 10 == 0 and i > 0:
+            _log(log_cb, f"   Still waiting for CAPTCHA solve... ({i}s)")
+            # Take screenshot every 30 seconds to show progress?
+            if i % 30 == 0:
+                try:
+                    page.screenshot(path=f"captcha_wait_{i}s.png")
+                except:
+                    pass
+    
+    _log(log_cb, "❌ CAPTCHA solve timeout after 5 minutes")
     return False
 
 
@@ -815,10 +963,11 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
 # RE-LISTING LOGIC
 # ═══════════════════════════════════════════════════════════════════════════
 
-def delete_listing(page, product: dict, log_cb=None) -> bool:
+def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     """
     Delete a listing via /my-listing page.
     Flow: go to /my-listing → find listing by title → click "..." menu → Cancel Offer → Remove Listing
+    Handles CAPTCHA if detected.
     """
     title = product.get("title", "")
     _log(log_cb, f"Deleting: {title}")
@@ -828,6 +977,12 @@ def delete_listing(page, product: dict, log_cb=None) -> bool:
     except PlaywrightTimeout:
         _log(log_cb, "   WARNING: Could not load My Listing page")
         return False
+
+    # Check for CAPTCHA
+    if _detect_captcha(page):
+        _log(log_cb, "   🤖 CAPTCHA detected on My Listing page!")
+        if not _wait_for_captcha_solved(page, log_cb, stop_event):
+            return False
 
     # Wait for page to render
     try:
@@ -1261,15 +1416,21 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
     Returns True if login successful, False if timeout or stopped.
     """
     _log(log_cb, "⏳ Waiting for you to login...")
-    _log(log_cb, "   ⚠️  Use Email/Password (NOT Google Login)")
+    _log(log_cb, "   ⚠️  Use Username/Password (NOT Google Login)")
     _log(log_cb, "   Google akan error 'This browser is not secure'")
     
     # Auto-fill credentials
     _log(log_cb, "   📝 Auto-filling credentials from config...")
     _auto_fill_login_form(page, log_cb)
     
-    captcha_warned = False
+    # Check for CAPTCHA after auto-fill
+    if _detect_captcha(page):
+        if not _wait_for_captcha_solved(page, log_cb, stop_event, timeout_seconds=120):
+            return False
+        # After CAPTCHA solved, user still needs to click login
+        _log(log_cb, "   ✅ CAPTCHA solved! Now click the Login button")
     
+    # Now wait for login to complete
     for i in range(timeout_seconds):
         if stop_event and stop_event.is_set():
             return False
@@ -1282,19 +1443,16 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
             _log(log_cb, "✅ Login detected!")
             return True
         
-        # Detect CAPTCHA and warn user
-        if not captcha_warned and _detect_captcha(page):
-            _log(log_cb, "🤖 CAPTCHA detected!")
-            _log(log_cb, "   Please solve the CAPTCHA manually in the browser")
-            _log(log_cb, "   Then click Login button")
-            captcha_warned = True
+        # Check if CAPTCHA appeared again (sometimes happens after clicking login)
+        if _detect_captcha(page):
+            _log(log_cb, "🤖 CAPTCHA appeared again! Please solve it...")
+            if not _wait_for_captcha_solved(page, log_cb, stop_event, timeout_seconds=120):
+                return False
+            _log(log_cb, "   ✅ CAPTCHA solved! Waiting for login...")
         
         # Log every 10 seconds
         if i % 10 == 0 and i > 0:
-            if captcha_warned:
-                _log(log_cb, f"   Waiting for login after CAPTCHA... ({i}s)")
-            else:
-                _log(log_cb, f"   Still waiting... ({i}s)")
+            _log(log_cb, f"   Still waiting for login... ({i}s)")
     
     _log(log_cb, "❌ Login timeout after 5 minutes")
     return False
