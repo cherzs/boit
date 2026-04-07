@@ -126,12 +126,12 @@ Bot membutuhkan file konfigurasi untuk menyimpan kredensial dan pengaturan.
    {
      "interval_minutes": 10,
      "headless": false,
-     "email": "emailkamu@example.com",
-     "password": "passwordkamu"
+     "username": "username-kamu",
+     "password": "password-kamu"
    }
    ```
 
-3. **Fitur Auto-Fill**: Email dan password akan otomatis terisi saat browser login terbuka
+3. **Fitur Auto-Fill**: Username dan password akan otomatis terisi saat browser login terbuka
 
 4. Save file tersebut
 

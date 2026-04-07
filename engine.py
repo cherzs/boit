@@ -1192,30 +1192,31 @@ def _auto_fill_login_form(page, log_cb=None):
     """
     try:
         cfg = load_config()
-        email = cfg.get("email", "").strip()
+        username = cfg.get("username", "").strip()
         password = cfg.get("password", "").strip()
         
-        if not email or not password:
+        if not username or not password:
             _log(log_cb, "   ℹ️  No credentials in config.json - manual entry required")
             return False
         
-        # Try to find and fill email/username field
-        email_filled = False
-        email_selectors = [
-            'input[type="email"]',
-            'input[name="email"]',
-            'input[id*="email" i]',
-            'input[placeholder*="email" i]',
+        # Try to find and fill username field
+        username_filled = False
+        username_selectors = [
             'input[type="text"]',
+            'input[name="username"]',
+            'input[id*="username" i]',
+            'input[placeholder*="username" i]',
+            'input[name="email"]',
+            'input[type="email"]',
         ]
         
-        for selector in email_selectors:
+        for selector in username_selectors:
             try:
                 field = page.query_selector(selector)
                 if field and field.is_visible():
-                    field.fill(email)
-                    _log(log_cb, f"   ✅ Email filled: {email}")
-                    email_filled = True
+                    field.fill(username)
+                    _log(log_cb, f"   ✅ Username filled: {username}")
+                    username_filled = True
                     break
             except:
                 continue
@@ -1240,7 +1241,7 @@ def _auto_fill_login_form(page, log_cb=None):
             except:
                 continue
         
-        if email_filled and password_filled:
+        if username_filled and password_filled:
             _log(log_cb, "   ℹ️  Form auto-filled. Please solve CAPTCHA (if any) and click Login")
             return True
         else:
