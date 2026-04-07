@@ -13,52 +13,266 @@ Bot otomasi yang dibuat untuk membantu seller di ZeusX melakukan *re-list* (hapu
 
 ---
 
-## 🛠 Instalasi Pertama (Developer/Admin)
+## 🛠 Instalasi Lengkap (Windows)
 
-Pastikan **Python 3.10+** (atau lebih tinggi) sudah terinstal di komputer. Saat install Python di Windows, **WAJIB mencentang "Add Python to PATH"**.
+Ikuti langkah-langkah berikut dengan urut untuk menginstal bot di komputer Windows.
 
-1. Buka CMD/Terminal di dalam folder ini.
-2. Install semua file kebutuhan (*library* Python):
+### **Step 1: Install Python**
+
+1. Download Python dari [python.org](https://www.python.org/downloads/)
+   - Pilih versi **Python 3.10** atau lebih tinggi
+   - Contoh: `Python 3.10.11` atau `Python 3.11.x`
+
+2. Jalankan installer Python yang sudah di-download
+
+3. **PENTING!** Saat instalasi, centang 2 opsi berikut:
+   - ✅ **Add Python to PATH** (di bawah tombol "Install Now")
+   - ✅ **Use admin privileges when installing py.exe**
+
+4. Klik **"Install Now"** dan tunggu sampai selesai
+
+5. Verifikasi instalasi Python:
+   - Buka CMD (tekan `Win + R`, ketik `cmd`, tekan Enter)
+   - Ketik: `python --version`
+   - Jika muncul versi (contoh: `Python 3.10.11`), berarti sukses ✅
+
+---
+
+### **Step 2: Download dan Extract Bot**
+
+1. Download repository ini (zip) atau clone pakai Git
+
+2. Extract folder bot ke lokasi yang mudah diakses
+   - **Direkomendasikan**: `C:\BOT\` atau `D:\BOT\`
+   - Hindari: Desktop atau folder Downloads (bisa bermasalah dengan permission)
+
+3. Hasil struktur foldernya seperti ini:
+   ```
+   C:\BOT\
+   ├── app.py
+   ├── engine.py
+   ├── server.py
+   ├── Bot.bat
+   ├── requirements.txt
+   ├── templates\
+   ├── images\           (folder kosong, akan terisi otomatis)
+   └── ...
+   ```
+
+---
+
+### **Step 3: Setup Virtual Environment (venv)**
+
+Virtual environment akan mengisolasi library bot agar tidak bentrok dengan library lain.
+
+1. Buka CMD sebagai **Administrator**:
+   - Tekan `Win` → ketik `cmd` → klik kanan **Command Prompt** → pilih **"Run as administrator"**
+
+2. Masuk ke folder bot:
+   ```bash
+   cd C:\BOT
+   ```
+   *(Ganti `C:\BOT` sesuai lokasi folder bot kamu)*
+
+3. Buat virtual environment:
+   ```bash
+   python -m venv venv
+   ```
+   Tunggu sampai selesai (biasanya 1-2 menit)
+
+4. Aktifkan virtual environment:
+   ```bash
+   venv\Scripts\activate
+   ```
+   Jika berhasil, akan muncul `(venv)` di depan prompt:
+   ```
+   (venv) C:\BOT>
+   ```
+
+---
+
+### **Step 4: Install Dependencies**
+
+Pastikan kamu masih di dalam virtual environment (ada tulisan `(venv)` di CMD).
+
+1. Install library Python yang dibutuhkan:
    ```bash
    pip install -r requirements.txt
-   playwright install
    ```
+   Tunggu sampai selesai (butuh koneksi internet, sekitar 2-5 menit)
+
+2. Install Playwright browser:
+   ```bash
+   playwright install chromium
+   ```
+   Ini akan mendownload browser Chromium khusus untuk bot (sekitar 100-200 MB)
+
+3. **Verifikasi instalasi**:
+   ```bash
+   pip list
+   ```
+   Pastikan muncul library seperti: `fastapi`, `uvicorn`, `playwright`, `aiohttp`, dll.
+
+---
+
+### **Step 5: Konfigurasi Bot**
+
+Bot membutuhkan file konfigurasi agar bisa login ke ZeusX.
+
+1. Di dalam folder bot, buka file `config.json`
+
+2. Isi dengan kredensial ZeusX kamu:
+   ```json
+   {
+     "email": "emailkamu@example.com",
+     "password": "passwordkamu"
+   }
+   ```
+
+3. Save file tersebut
+
+⚠️ **Catatan Keamanan**: File `config.json` tidak akan di-push ke GitHub (sudah di-.gitignore), jadi aman untuk disimpan di local.
 
 ---
 
 ## 🕹 Cara Menjalankan Bot
 
-### **Pilihan 1: Cara Standar (Manual lewat CMD)**
-1. Buka CMD di dalam folder bot ini.
-2. Ketik perintah:
+Setelah instalasi selesai, ada beberapa cara untuk menjalankan bot:
+
+---
+
+### **Cara 1: Manual lewat CMD (Recommended untuk Development)**
+
+1. Buka CMD di folder bot
+
+2. Aktifkan virtual environment:
+   ```bash
+   venv\Scripts\activate
+   ```
+
+3. Jalankan server:
    ```bash
    python server.py
    ```
-3. Buka browser dan pergi ke `http://localhost:8000`
 
-### **Pilihan 2: Cara Cepat (Sistem Alias "Bot")**
-Bagi pengguna Windows, Anda bisa mengatur agar bot bisa dinyalakan dari foldernya tanpa harus buka CMD manual, atau bahkan **darimana saja hanya dengan mengetik kata `Bot`**.
+4. Buka browser dan akses:
+   ```
+   http://localhost:8000
+   ```
 
-#### **Cara A: Lewat Shortcut / Klik Kanan (Paling Gampang)**
-1. Cari file bernama **`Bot.bat`** di dalam folder bot ini.
-2. Cukup klik ganda (Double-Click) file tersebut. Server akan menyala dan otomatis membuka browser ke halaman dashboard.
+5. Dashboard bot akan muncul dan siap digunakan!
 
-#### **Cara B: Bikin Alias "Bot" Global di CMD (Disarankan)**
-Jika ingin lebih terlihat *pro*—di mana Anda bisa membuka CMD baru dari lokasi acak (misal Desktop atau Disk D:\) lalu sekadar mengetik `Bot`—ikuti langkah berikut:
+---
 
-1. **Copy lokasi folder bot ini**. Misalnya tergeletak di `C:\ZeusX_Bot`. (Penting: Sebaiknya jangan taruh di Desktop atau folder sementara. Pindahkan ke Root Drive seperti `C:\` atau `D:\` terlebih dahulu).
-2. Tekan tombol logo **Windows** di keyboard, ketik tulisan `Environment Variables`.
-3. Pilih hasil pencarian yang berjudul: **"Edit the system environment variables"**.
-4. Akan muncul jendela peringatan kecil, klik tombol **"Environment Variables..."** di bagian kanan bawah.
-5. Pada kotak bagian atas (bernama *User variables for [Nama Usermu]*), cari variabel yang bernama **`Path`**.
-6. Klik pada baris `Path` tersebut, lalu tekan tombol **Edit...**
-7. Klik tombol **New** (di sebelah kanan atas).
-8. **Paste (tempel)** lokasi folder bot yang tadi kamu salin (misal: `C:\ZeusX_Bot`).
-9. Tekan **OK**, lalu tekan **OK** lagi, dan **OK** sekali lagi untuk menyimpan dan menutup jendelanya.
+### **Cara 2: Double-Click File Bot.bat (Paling Mudah)**
 
-**Selesai! Saatnya Mencoba:**
-Tutup / silang aplikasi CMD jika ada yang sedang terbuka. Sekarang, coba buka aplikasi CMD baru, atau buka Windows Run (tekan `Win + R`), dan ketik:
-```bash
-Bot
+1. Masuk ke folder bot di File Explorer
+
+2. Cari file bernama **`Bot.bat`**
+
+3. **Double-click** file tersebut
+
+4. Bot akan otomatis:
+   - Mengaktifkan venv
+   - Menjalankan server
+   - Membuka browser ke dashboard
+
+---
+
+### **Cara 3: Alias Global "Bot" (Bisa jalan dari mana saja)**
+
+Jika ingin mengetik `Bot` dari CMD mana saja (tidak harus di folder bot):
+
+1. Copy lokasi folder bot (contoh: `C:\BOT`)
+
+2. Tekan `Win` → ketik `Environment Variables`
+
+3. Pilih **"Edit the system environment variables"**
+
+4. Klik tombol **"Environment Variables..."**
+
+5. Pada bagian **User variables**, cari variabel bernama **`Path`**
+
+6. Klik **Edit...** → **New** → Paste lokasi folder bot → **OK**
+
+7. Klik **OK** sampai semua jendela tertutup
+
+8. Sekarang buka CMD baru dari mana saja, ketik:
+   ```bash
+   Bot
+   ```
+   Bot akan langsung jalan!
+
+---
+
+## 🔄 Update Bot (Jika Ada Perubahan)
+
+Jika ada update dari repository GitHub:
+
+1. Pull/update file terbaru (download ulang atau `git pull`)
+
+2. Aktifkan venv:
+   ```bash
+   venv\Scripts\activate
+   ```
+
+3. Update dependencies (jika ada yang baru):
+   ```bash
+   pip install -r requirements.txt --upgrade
+   ```
+
+---
+
+## ❌ Troubleshooting
+
+### Error: "python" tidak dikenali
+- Pastikan Python sudah di-add ke PATH saat instalasi
+- Atau coba ketik `py` bukan `python`
+
+### Error: "pip is not recognized"
+- Install ulang Python dan pastikan centang "Add Python to PATH"
+
+### Error: "No module named 'xxx'"
+- Pastikan virtual environment sudah diaktifkan
+- Jalankan ulang: `pip install -r requirements.txt`
+
+### Error saat `playwright install`
+- Pastikan koneksi internet stabil
+- Coba pakai CMD Administrator
+
+### Browser tidak terbuka otomatis
+- Buka manual di browser: `http://localhost:8000`
+
+---
+
+## 📁 Struktur File Penting
+
 ```
-Lalu tekan Enter. Bot akan langsung *on* dan membuka browser secara otomatis, tak peduli di folder apa CMD kamu sedang berada!
+C:\BOT\
+├── app.py                 # Main application logic
+├── engine.py              # Playwright automation engine
+├── server.py              # Web server (FastAPI)
+├── Bot.bat               # Shortcut untuk Windows
+├── requirements.txt       # Python dependencies
+├── config.json           # Konfigurasi login (local only)
+├── auth.json             # Session auth (auto-generated)
+├── products.json         # Data produk (auto-generated)
+├── templates\
+│   └── index.html        # Web UI dashboard
+└── images\               # Folder gambar produk (local only)
+    └── ...
+```
+
+---
+
+## ⚠️ Catatan Penting
+
+- **JANGAN** push file `config.json`, `auth.json`, `products.json`, dan folder `images/` ke GitHub - file-file ini sudah di-exclude via `.gitignore`
+- Selalu gunakan virtual environment untuk menghindari konflik library
+- Bot ini untuk personal use, gunakan dengan bijak
+
+---
+
+## 📝 Lisensi
+
+Bot ini dibuat untuk keperluan otomasi personal. Gunakan dengan risiko sendiri.
