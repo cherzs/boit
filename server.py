@@ -188,7 +188,7 @@ def api_scan():
             has_sess = engine.has_session()
             print(f"DEBUG: has_session = {has_sess}")
             if not has_sess:
-                return jsonify({"error": "Login first. Click 'Open ZeusX Login' or 'Import from Browser'"}), 400
+                return jsonify({"error": "MY PRODUCTS requires login. Switch to 'Public Store' tab for no-login scan, or click 'Import from Browser' to login."}), 400
 
         def do_scan():
             try:
