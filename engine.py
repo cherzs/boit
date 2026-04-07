@@ -109,7 +109,69 @@ def save_products(products: list):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def has_session() -> bool:
-    return os.path.exists(AUTH_FILE)
+    """Check if auth.json exists and is valid."""
+    if not os.path.exists(AUTH_FILE):
+        return False
+    
+    try:
+        with open(AUTH_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            # Check if has cookies
+            if data.get('cookies') and len(data['cookies']) > 0:
+                return True
+    except:
+        pass
+    
+    return False
+
+
+def validate_session(log_cb=None) -> bool:
+    """
+    Validate that the session in auth.json is working by testing a page load.
+    Returns True if session is valid, False otherwise.
+    """
+    if not has_session():
+        _log(log_cb, "❌ No session file (auth.json) found")
+        return False
+    
+    _log(log_cb, "Validating session...")
+    
+    try:
+        with sync_playwright() as pw:
+            browser, context, page = _new_context(pw, headless=True)
+            
+            try:
+                # Try to access my-listing page (requires login)
+                page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=15_000)
+                _random_delay(2, 3)
+                
+                # Check if redirected to login page (session invalid)
+                current_url = page.url
+                if "/login" in current_url:
+                    _log(log_cb, "❌ Session expired or invalid (redirected to login)")
+                    return False
+                
+                # Check for login form
+                login_form = page.query_selector('input[type="password"], form[action*="login"]')
+                if login_form:
+                    _log(log_cb, "❌ Session expired or invalid (login form detected)")
+                    return False
+                
+                # Check if we can see the listing page content
+                my_listing_indicator = page.query_selector('[class*="listing"], [class*="product"], h1, .container')
+                if my_listing_indicator:
+                    _log(log_cb, "✅ Session is valid")
+                    return True
+                
+                _log(log_cb, "⚠️ Could not verify session status")
+                return False
+                
+            finally:
+                browser.close()
+                
+    except Exception as e:
+        _log(log_cb, f"❌ Error validating session: {e}")
+        return False
 
 
 def save_session(context):
@@ -1088,6 +1150,27 @@ def run_once(
     if stop_event is None:
         stop_event = threading.Event()
 
+    # Check if auth.json exists and is valid
+    _log(log_cb, "="*50)
+    _log(log_cb, "BOT STARTING - Checking session...")
+    _log(log_cb, "="*50)
+    
+    if not has_session():
+        _log(log_cb, "❌ ERROR: No session found!")
+        _log(log_cb, "Please login first:")
+        _log(log_cb, "  1. Click 'Login' or 'Import from Chrome/Edge' button")
+        _log(log_cb, "  2. Or manually create auth.json file")
+        _log(log_cb, "\nSee CARA_LOGIN_MANUAL.md for help")
+        return
+    
+    # Validate session by testing it
+    if not validate_session(log_cb):
+        _log(log_cb, "\n❌ ERROR: Session is invalid or expired!")
+        _log(log_cb, "Please re-login or import session again")
+        return
+    
+    _log(log_cb, "="*50)
+    
     products = load_products()
     enabled = [p for p in products if p.get("enabled", True)]
 
