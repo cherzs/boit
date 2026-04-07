@@ -1,0 +1,6 @@
+streamlit
+playwright
+playwright-stealth
+requests
+flask
+flask-socketio
