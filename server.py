@@ -171,43 +171,25 @@ def api_import():
 def api_scan():
     if bot_state["running"]:
         return jsonify({"error": "Stop the bot first"}), 400
-    
-    # Check session
-    has_sess = engine.has_session()
-    print(f"DEBUG: has_session = {has_sess}")
-    
-    if not has_sess:
-        return jsonify({"error": "Login first. Click 'Open ZeusX Login' or 'Import from Browser'"}), 400
+    if not engine.has_session():
+        return jsonify({"error": "Login first"}), 400
 
-    try:
-        cfg = engine.load_config()
-        data = request.get_json(force=True) or {}
-        store_url = data.get("store_url", "").strip()
-        
-        print(f"DEBUG: store_url = {store_url}")
+    cfg = engine.load_config()
+    data = request.json or {}
+    store_url = data.get("store_url", "").strip()
 
-        def do_scan():
-            try:
-                engine.scan_all_products(
-                    headless=cfg.get("headless", False),
-                    log_cb=log_callback,
-                    store_url=store_url,
-                )
-            except Exception as e:
-                log_callback(f"[ERROR] Scan failed: {e}")
-                import traceback
-                log_callback(traceback.format_exc())
-            socketio.emit("products_updated", True)
-            socketio.emit("status_update", _build_status())
+    def do_scan():
+        engine.scan_all_products(
+            headless=cfg.get("headless", False),
+            log_cb=log_callback,
+            store_url=store_url,
+        )
+        socketio.emit("products_updated", True)
+        socketio.emit("status_update", _build_status())
 
-        t = threading.Thread(target=do_scan, daemon=True)
-        t.start()
-        return jsonify({"ok": True, "message": "Scanning started"})
-    except Exception as e:
-        print(f"DEBUG: Exception in api_scan: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+    t = threading.Thread(target=do_scan, daemon=True)
+    t.start()
+    return jsonify({"ok": True, "message": "Scanning started"})
 
 
 @app.route("/api/start", methods=["POST"])
