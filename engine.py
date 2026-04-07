@@ -284,16 +284,64 @@ def scrape_my_listings(page, log_cb=None) -> list:
 
     _random_delay(2, 4)
 
-    # Scroll down to load all products (lazy loading / pagination)
-    prev_count = 0
-    for _ in range(20):
+    # Scroll down and click "Load More" to load ALL products
+    _log(log_cb, "Scrolling to load all products...")
+    
+    total_products = 0
+    no_change_count = 0
+    max_iterations = 100  # Prevent infinite loop
+    
+    for iteration in range(max_iterations):
+        # Scroll to bottom
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        _random_delay(1, 2)
-        links = page.query_selector_all("a[href]")
-        if len(links) == prev_count:
+        _random_delay(1.5, 2.5)
+        
+        # Count current products
+        links = page.query_selector_all('a[href*="/game/"]')
+        current_count = len(links)
+        
+        # Check if we found new products
+        if current_count > total_products:
+            total_products = current_count
+            no_change_count = 0
+            if iteration % 5 == 0:  # Log every 5 iterations
+                _log(log_cb, f"  Loaded {total_products} products so far...")
+        else:
+            no_change_count += 1
+        
+        # Try to click "Load More" button if exists
+        load_more_clicked = False
+        load_more_selectors = [
+            'button:has-text("Load")',
+            'button:has-text("Show")', 
+            'button:has-text("More")',
+            '[class*="load-more"]',
+            '[class*="show-more"]',
+            'button[class*="pagination"]',
+            'a:has-text("Load More")',
+            'a:has-text("Show More")',
+            'button:has-text("View More")',
+        ]
+        
+        for selector in load_more_selectors:
+            try:
+                load_more_btn = page.query_selector(selector)
+                if load_more_btn:
+                    if load_more_btn.is_visible():
+                        load_more_btn.click()
+                        _log(log_cb, f"  Clicked 'Load More' button")
+                        load_more_clicked = True
+                        _random_delay(2, 3)
+                        break
+            except:
+                continue
+        
+        # Stop if no new products and no load more button
+        if no_change_count >= 3 and not load_more_clicked:
+            _log(log_cb, f"  No more products to load. Total: {total_products}")
             break
-        prev_count = len(links)
-
+    
+    _log(log_cb, f"Finished loading. Found {total_products} total products")
     return _collect_product_links(page, log_cb)
 
 
@@ -312,16 +360,59 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
 
     _random_delay(2, 4)
 
-    # Scroll down to load all products
-    prev_count = 0
-    for _ in range(20):
+    # Scroll down and click "Load More" to load ALL products
+    _log(log_cb, "Scrolling to load all products...")
+    
+    total_products = 0
+    no_change_count = 0
+    max_iterations = 100
+    
+    for iteration in range(max_iterations):
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        _random_delay(1, 2)
-        links = page.query_selector_all("a[href]")
-        if len(links) == prev_count:
+        _random_delay(1.5, 2.5)
+        
+        links = page.query_selector_all('a[href*="/game/"]')
+        current_count = len(links)
+        
+        if current_count > total_products:
+            total_products = current_count
+            no_change_count = 0
+            if iteration % 5 == 0:
+                _log(log_cb, f"  Loaded {total_products} products so far...")
+        else:
+            no_change_count += 1
+        
+        # Try to click "Load More" button if exists
+        load_more_clicked = False
+        load_more_selectors = [
+            'button:has-text("Load")',
+            'button:has-text("Show")', 
+            'button:has-text("More")',
+            '[class*="load-more"]',
+            '[class*="show-more"]',
+            'button[class*="pagination"]',
+            'a:has-text("Load More")',
+            'a:has-text("Show More")',
+            'button:has-text("View More")',
+        ]
+        
+        for selector in load_more_selectors:
+            try:
+                load_more_btn = page.query_selector(selector)
+                if load_more_btn and load_more_btn.is_visible():
+                    load_more_btn.click()
+                    _log(log_cb, f"  Clicked 'Load More' button")
+                    load_more_clicked = True
+                    _random_delay(2, 3)
+                    break
+            except:
+                continue
+        
+        if no_change_count >= 3 and not load_more_clicked:
+            _log(log_cb, f"  No more products to load. Total: {total_products}")
             break
-        prev_count = len(links)
-
+    
+    _log(log_cb, f"Finished loading. Found {total_products} total products")
     return _collect_product_links(page, log_cb)
 
 
@@ -340,7 +431,16 @@ def _collect_product_links(page, log_cb=None) -> list:
                 continue
 
             full_url = urljoin(BASE_URL, href)
-            if re.search(r"/game/.+/[^/]+-\d{5,}$", full_url) and full_url not in seen_urls:
+            
+            # More flexible regex to catch various ZeusX product URL formats
+            # Matches: /game/anything/product-name-123 or /product-name-123456
+            is_product = (
+                re.search(r"/game/[^/]+/[^/]+-\d+", full_url) or  # /game/category/name-123
+                re.search(r"/[\w-]+-\d{5,}$", full_url) or         # name-12345 (any path)
+                ("/game/" in full_url and "-" in full_url and any(c.isdigit() for c in full_url))  # fallback
+            )
+            
+            if is_product and full_url not in seen_urls and full_url.startswith(BASE_URL):
                 seen_urls.add(full_url)
                 product_links.append({"url": full_url, "title": text[:200]})
         except Exception:
