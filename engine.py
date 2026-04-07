@@ -183,8 +183,11 @@ def open_login_browser(log_cb=None):
     Open ZeusX in user's default browser for manual login.
     User needs to manually copy cookies afterward.
     """
+    _log(log_cb, "="*50)
     _log(log_cb, "Opening ZeusX in your default browser...")
-    _log(log_cb, "Please login manually (use Email/Password, NOT Google login)")
+    _log(log_cb, "⚠️ IMPORTANT: Use Email/Password to login")
+    _log(log_cb, "   (Google Login will show 'insecure browser' error)")
+    _log(log_cb, "="*50)
     
     webbrowser.open_new_tab(f"{BASE_URL}/login")
     
@@ -1188,7 +1191,8 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
     Returns True if login successful, False if timeout or stopped.
     """
     _log(log_cb, "⏳ Waiting for you to login...")
-    _log(log_cb, "   Please login in the browser window")
+    _log(log_cb, "   ⚠️  Use Email/Password (NOT Google Login)")
+    _log(log_cb, "   Google akan error 'This browser is not secure'")
     
     for i in range(timeout_seconds):
         if stop_event and stop_event.is_set():

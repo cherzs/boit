@@ -182,6 +182,14 @@ with st.sidebar:
             st.rerun()
         else:
             st.error("Failed to import. Make sure you are logged in to ZeusX in Chrome/Edge.")
+    
+    # Warning about Google Login
+    st.markdown("""
+    <div style="background-color:#fff3cd; color:#856404; padding:10px; border-radius:5px; font-size:0.85rem; margin-top:10px;">
+    ⚠️ <b>Catatan:</b> Google Login mungkin error di browser bot.<br>
+    Gunakan <b>Email/Password</b> biasa, atau pakai "Import from Chrome/Edge"
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("## ⚙️ Settings")
