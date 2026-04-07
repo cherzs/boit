@@ -209,7 +209,7 @@ with st.sidebar:
     seller_url = st.text_input(
         "Seller Profile URL",
         value=cfg.get("seller_url", ""),
-        placeholder="https://zeusx.com/seller/yourstore-123456",
+        placeholder="https://www.zeusx.com/seller/username-123456",
     )
     interval = st.number_input(
         "Interval (minutes)",
@@ -262,25 +262,31 @@ scan_tab1, scan_tab2 = st.tabs(["📍 Scan Public Store (No Login)", "🔐 Scan 
 
 with scan_tab1:
     st.markdown("**Scan dari public store link** - Tidak perlu login")
+    
+    # Get URL to use: prioritize input value, fallback to config
+    default_url = seller_url if seller_url else ""
     public_url = st.text_input(
         "Public Store URL",
-        value=seller_url if seller_url else "",
+        value=default_url,
         placeholder="https://www.zeusx.com/seller/username-123456",
         key="public_store_url"
     )
     
+    # Use the URL from input (which defaults to config value)
+    url_to_scan = public_url.strip() if public_url.strip() else seller_url
+    
     if st.button("🔍 Scan Public Store", use_container_width=True, disabled=st.session_state.running):
-        if not public_url.strip():
-            st.error("Masukkan Public Store URL!")
+        if not url_to_scan:
+            st.error("Masukkan Public Store URL! Contoh: https://www.zeusx.com/seller/username-123456")
         else:
-            with st.spinner("Scanning public store…"):
+            with st.spinner(f"Scanning: {url_to_scan}…"):
                 scanned = engine.scan_all_products(
-                    store_url=public_url,
+                    store_url=url_to_scan,
                     log_cb=add_log,
                 )
                 products = scanned
-                # Update seller_url in config
-                cfg["seller_url"] = public_url
+                # Update seller_url in config for future use
+                cfg["seller_url"] = url_to_scan
                 engine.save_config(cfg)
             st.rerun()
 
