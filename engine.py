@@ -118,11 +118,59 @@ def save_session(context):
 
 def open_login_browser(log_cb=None):
     """
-    Open ZeusX in the user's default browser as a new tab.
+    Open ZeusX in a Playwright browser for login.
+    User can login manually, then session will be saved to auth.json
     """
-    _log(log_cb, "Opening ZeusX in your browser...")
-    webbrowser.open_new_tab(BASE_URL)
-    _log(log_cb, "ZeusX opened in a new tab. Log in if needed.")
+    _log(log_cb, "Opening ZeusX browser for login...")
+    
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=False)
+        w = random.randint(1280, 1920)
+        h = random.randint(800, 1080)
+        context = browser.new_context(viewport={"width": w, "height": h})
+        page = context.new_page()
+        if HAS_STEALTH:
+            stealth_sync(page)
+        
+        try:
+            page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
+            _log(log_cb, "Browser opened. Please login manually in the browser window.")
+            _log(log_cb, "Browser will auto-detect successful login and save session...")
+            
+            # Wait for login to complete (check for redirect to dashboard or my-listing)
+            logged_in = False
+            max_wait = 300  # Wait up to 5 minutes
+            for i in range(max_wait):
+                time.sleep(1)
+                current_url = page.url
+                
+                # Check if already logged in (redirected to dashboard or my-listing)
+                if "/my-listing" in current_url or "/dashboard" in current_url:
+                    logged_in = True
+                    break
+                
+                # Also check for user menu/profile indicator
+                try:
+                    user_menu = page.query_selector('[class*="user-menu"], [class*="profile"], [class*="avatar"], [class*="dropdown-toggle"]')
+                    if user_menu:
+                        logged_in = True
+                        break
+                except:
+                    pass
+                
+                if i % 10 == 0:  # Log every 10 seconds
+                    _log(log_cb, f"Waiting for login... ({i}s)")
+            
+            if logged_in:
+                save_session(context)
+                _log(log_cb, "✅ Login successful! Session saved to auth.json")
+            else:
+                _log(log_cb, "⚠️ Login timeout. Please try again.")
+                
+        except Exception as e:
+            _log(log_cb, f"Error during login: {e}")
+        finally:
+            browser.close()
 
 
 def _new_context(pw, headless: bool = False):
