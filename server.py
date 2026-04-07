@@ -146,6 +146,21 @@ def api_login():
     return jsonify({"ok": True, "message": "Browser opening — log in then close it"})
 
 
+@app.route("/api/import", methods=["POST"])
+def api_import():
+    if bot_state["running"]:
+        return jsonify({"error": "Stop the bot first"}), 400
+    
+    def do_import():
+        success = engine.import_session_from_chrome(log_cb=log_callback)
+        socketio.emit("status_update", _build_status())
+        return success
+    
+    # Run in thread to not block
+    success = do_import()
+    return jsonify({"ok": True, "success": success, "message": "Import completed"})
+
+
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     if bot_state["running"]:

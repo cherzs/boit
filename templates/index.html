@@ -862,9 +862,13 @@
                     <input type="text" id="storeUrl" placeholder="https://zeusx.com/seller/gstore-657837">
                 </div>
 
-                <div class="btn-group" style="margin-bottom:1.2rem">
+                <div class="btn-group" style="margin-bottom:0.8rem">
                     <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">Login to ZeusX</button>
                     <button class="btn btn-outline" id="scanBtn" onclick="doScan()">Scan Products</button>
+                </div>
+
+                <div class="btn-group" style="margin-bottom:1.2rem">
+                    <button class="btn btn-outline" id="importBtn" onclick="doImport()" title="Import session from Chrome/Edge browser">📥 Import from Chrome</button>
                 </div>
 
                 <hr style="border-color:var(--border); margin:1rem 0">
@@ -997,6 +1001,7 @@
             document.getElementById('startBtn').disabled = s.running;
             document.getElementById('stopBtn').disabled = !s.running;
             document.getElementById('scanBtn').disabled = s.running;
+            document.getElementById('importBtn').disabled = s.running;
 
             // Login button: show status
             const loginBtn = document.getElementById('loginBtn');
@@ -1169,6 +1174,21 @@
             document.getElementById('loginBtn').disabled = true;
             showToast('Opening browser — log in then close it', 'info');
             await api('login', 'POST');
+        }
+
+        async function doImport() {
+            document.getElementById('importBtn').disabled = true;
+            showToast('Importing session from Chrome/Edge...', 'info');
+            const res = await api('import', 'POST');
+            if (res && res.success) {
+                showToast('Session imported successfully!', 'success');
+                // Refresh status
+                const s = await api('status');
+                if (s) updateStatus(s);
+            } else {
+                showToast('Import failed. Make sure you are logged in to ZeusX in Chrome/Edge.', 'error');
+            }
+            document.getElementById('importBtn').disabled = false;
         }
 
         async function doScan() {
