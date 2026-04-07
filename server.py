@@ -78,33 +78,27 @@ def index():
 
 @app.route("/api/status")
 def api_status():
-    try:
-        return jsonify(_build_status())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify(_build_status())
 
 
 @app.route("/api/products")
 def api_products():
-    try:
-        products = engine.load_products()
-        # Don't send full image paths to frontend
-        safe = []
-        for p in products:
-            # Only count actual product images (cdn-offer-photos), not avatars/tracking
-            offer_images = [img for img in p.get("images", []) if "cdn-offer-photos" in img]
-            safe.append({
-                "url": p.get("url", ""),
-                "title": p.get("title", "Untitled"),
-                "price": p.get("price", "-"),
-                "description": (p.get("description", "") or "")[:150],
-                "enabled": p.get("enabled", True),
-                "last_relisted": p.get("last_relisted"),
-                "image_count": len(offer_images),
-            })
-        return jsonify(safe)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    products = engine.load_products()
+    # Don't send full image paths to frontend
+    safe = []
+    for p in products:
+        # Only count actual product images (cdn-offer-photos), not avatars/tracking
+        offer_images = [img for img in p.get("images", []) if "cdn-offer-photos" in img]
+        safe.append({
+            "url": p.get("url", ""),
+            "title": p.get("title", "Untitled"),
+            "price": p.get("price", "-"),
+            "description": (p.get("description", "") or "")[:150],
+            "enabled": p.get("enabled", True),
+            "last_relisted": p.get("last_relisted"),
+            "image_count": len(offer_images),
+        })
+    return jsonify(safe)
 
 @app.route("/api/product/detail")
 def api_product_detail():
@@ -160,11 +154,11 @@ def api_import():
     def do_import():
         success = engine.import_session_from_chrome(log_cb=log_callback)
         socketio.emit("status_update", _build_status())
+        return success
     
     # Run in thread to not block
-    t = threading.Thread(target=do_import, daemon=True)
-    t.start()
-    return jsonify({"ok": True, "message": "Import started"})
+    success = do_import()
+    return jsonify({"ok": True, "success": success, "message": "Import completed"})
 
 
 @app.route("/api/scan", methods=["POST"])
