@@ -723,6 +723,24 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
     Full scrape pipeline. If store_url is given, scrape from public seller page.
     Otherwise scrape from /my-listing dashboard.
     """
+    _log(log_cb, "="*50)
+    _log(log_cb, "SCAN STARTING - Checking session...")
+    _log(log_cb, "="*50)
+    
+    # Check if auth.json exists (only needed for /my-listing, not public store)
+    if not store_url and not has_session():
+        _log(log_cb, "❌ ERROR: No session found!")
+        _log(log_cb, "Please login first before scanning your products")
+        _log(log_cb, "Click 'Login' or 'Import from Chrome/Edge' button")
+        return []
+    
+    # Validate session for my-listing
+    if not store_url and not validate_session(log_cb):
+        _log(log_cb, "\n❌ ERROR: Session is invalid or expired!")
+        _log(log_cb, "Please re-login or import session again")
+        return []
+    
+    _log(log_cb, "="*50)
     _log(log_cb, "Starting full product scan...")
 
     with sync_playwright() as pw:
