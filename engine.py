@@ -481,9 +481,76 @@ def _wait_for_captcha_solved(page, log_cb=None, stop_event=None, timeout_seconds
 # PRODUCT SCRAPING
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _click_next_page(page, log_cb=None) -> bool:
+    """
+    Try to click the next page button in pagination.
+    Returns True if successfully clicked, False otherwise.
+    """
+    # Common pagination selectors
+    pagination_selectors = [
+        # Next button
+        'a[rel="next"]',
+        'button[rel="next"]',
+        'a:has-text("Next")',
+        'a:has-text(">")',
+        'button:has-text("Next")',
+        'a.pagination-next',
+        '[class*="pagination"] a:last-child',
+        '[class*="pagination"] button:last-child',
+        
+        # Page numbers - find current active page and click next
+        'a[class*="active"] + a',  # Link right after active page
+        'button[class*="active"] + button',
+        '.pagination .active + li a',
+        '.pagination .current + li a',
+    ]
+    
+    for selector in pagination_selectors:
+        try:
+            next_btn = page.query_selector(selector)
+            if next_btn and next_btn.is_visible():
+                # Check if it's disabled
+                disabled = next_btn.get_attribute("disabled") or next_btn.get_attribute("aria-disabled")
+                if disabled:
+                    continue
+                
+                next_btn.click()
+                _log(log_cb, "  Clicked 'Next' page button")
+                _random_delay(2, 4)  # Wait for page to load
+                return True
+        except:
+            continue
+    
+    return False
+
+
+def _get_current_page_number(page) -> int:
+    """Try to get current page number from pagination."""
+    try:
+        # Look for active/current page number
+        active_selectors = [
+            '.pagination .active',
+            '.pagination .current',
+            '[class*="pagination"] [class*="active"]',
+            'a[class*="page"][class*="active"]',
+        ]
+        
+        for selector in active_selectors:
+            elem = page.query_selector(selector)
+            if elem:
+                text = elem.inner_text().strip()
+                if text.isdigit():
+                    return int(text)
+    except:
+        pass
+    
+    return 1
+
+
 def scrape_my_listings(page, log_cb=None) -> list:
     """
     Navigate to /my-listing (logged-in dashboard) and collect all product links.
+    Handles pagination to get ALL products.
     Returns a list of dicts: [{url, title}, ...]
     """
     my_listing_url = f"{BASE_URL}/my-listing"
@@ -496,71 +563,45 @@ def scrape_my_listings(page, log_cb=None) -> list:
         return []
 
     _random_delay(2, 4)
-
-    # Scroll down and click "Load More" to load ALL products
-    _log(log_cb, "Scrolling to load all products...")
     
-    total_products = 0
-    no_change_count = 0
-    max_iterations = 100  # Prevent infinite loop
+    # Collect all products from all pages
+    all_product_links = []
+    seen_urls = set()
+    max_pages = 50  # Safety limit
     
-    for iteration in range(max_iterations):
-        # Scroll to bottom
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        _random_delay(1.5, 2.5)
+    for page_num in range(1, max_pages + 1):
+        _log(log_cb, f"  Scanning page {page_num}...")
         
-        # Count current products
-        links = page.query_selector_all('a[href*="/game/"]')
-        current_count = len(links)
+        # Scroll to load all products on current page
+        for _ in range(3):
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            _random_delay(1, 2)
         
-        # Check if we found new products
-        if current_count > total_products:
-            total_products = current_count
-            no_change_count = 0
-            if iteration % 5 == 0:  # Log every 5 iterations
-                _log(log_cb, f"  Loaded {total_products} products so far...")
-        else:
-            no_change_count += 1
+        # Get products from current page
+        page_links = _collect_product_links(page, log_cb)
+        new_links = 0
         
-        # Try to click "Load More" button if exists
-        load_more_clicked = False
-        load_more_selectors = [
-            'button:has-text("Load")',
-            'button:has-text("Show")', 
-            'button:has-text("More")',
-            '[class*="load-more"]',
-            '[class*="show-more"]',
-            'button[class*="pagination"]',
-            'a:has-text("Load More")',
-            'a:has-text("Show More")',
-            'button:has-text("View More")',
-        ]
+        for link in page_links:
+            if link["url"] not in seen_urls:
+                seen_urls.add(link["url"])
+                all_product_links.append(link)
+                new_links += 1
         
-        for selector in load_more_selectors:
-            try:
-                load_more_btn = page.query_selector(selector)
-                if load_more_btn:
-                    if load_more_btn.is_visible():
-                        load_more_btn.click()
-                        _log(log_cb, f"  Clicked 'Load More' button")
-                        load_more_clicked = True
-                        _random_delay(2, 3)
-                        break
-            except:
-                continue
+        _log(log_cb, f"    Found {new_links} new product(s) on this page")
         
-        # Stop if no new products and no load more button
-        if no_change_count >= 3 and not load_more_clicked:
-            _log(log_cb, f"  No more products to load. Total: {total_products}")
+        # Try to go to next page
+        if not _click_next_page(page, log_cb):
+            _log(log_cb, "  No more pages to load")
             break
     
-    _log(log_cb, f"Finished loading. Found {total_products} total products")
-    return _collect_product_links(page, log_cb)
+    _log(log_cb, f"Finished scanning. Found {len(all_product_links)} total products")
+    return all_product_links
 
 
 def scrape_store_page(page, store_url: str, log_cb=None) -> list:
     """
     Navigate to a public seller/store page and collect all product links.
+    Handles pagination to get ALL products.
     Returns a list of dicts: [{url, title}, ...]
     """
     _log(log_cb, f"Scanning store page: {store_url}")
@@ -572,61 +613,39 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         return []
 
     _random_delay(2, 4)
-
-    # Scroll down and click "Load More" to load ALL products
-    _log(log_cb, "Scrolling to load all products...")
     
-    total_products = 0
-    no_change_count = 0
-    max_iterations = 100
+    # Collect all products from all pages
+    all_product_links = []
+    seen_urls = set()
+    max_pages = 50  # Safety limit
     
-    for iteration in range(max_iterations):
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        _random_delay(1.5, 2.5)
+    for page_num in range(1, max_pages + 1):
+        _log(log_cb, f"  Scanning page {page_num}...")
         
-        links = page.query_selector_all('a[href*="/game/"]')
-        current_count = len(links)
+        # Scroll to load all products on current page
+        for _ in range(3):
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            _random_delay(1, 2)
         
-        if current_count > total_products:
-            total_products = current_count
-            no_change_count = 0
-            if iteration % 5 == 0:
-                _log(log_cb, f"  Loaded {total_products} products so far...")
-        else:
-            no_change_count += 1
+        # Get products from current page
+        page_links = _collect_product_links(page, log_cb)
+        new_links = 0
         
-        # Try to click "Load More" button if exists
-        load_more_clicked = False
-        load_more_selectors = [
-            'button:has-text("Load")',
-            'button:has-text("Show")', 
-            'button:has-text("More")',
-            '[class*="load-more"]',
-            '[class*="show-more"]',
-            'button[class*="pagination"]',
-            'a:has-text("Load More")',
-            'a:has-text("Show More")',
-            'button:has-text("View More")',
-        ]
+        for link in page_links:
+            if link["url"] not in seen_urls:
+                seen_urls.add(link["url"])
+                all_product_links.append(link)
+                new_links += 1
         
-        for selector in load_more_selectors:
-            try:
-                load_more_btn = page.query_selector(selector)
-                if load_more_btn and load_more_btn.is_visible():
-                    load_more_btn.click()
-                    _log(log_cb, f"  Clicked 'Load More' button")
-                    load_more_clicked = True
-                    _random_delay(2, 3)
-                    break
-            except:
-                continue
+        _log(log_cb, f"    Found {new_links} new product(s) on this page")
         
-        if no_change_count >= 3 and not load_more_clicked:
-            _log(log_cb, f"  No more products to load. Total: {total_products}")
+        # Try to go to next page
+        if not _click_next_page(page, log_cb):
+            _log(log_cb, "  No more pages to load")
             break
     
-    _log(log_cb, f"Finished loading. Found {total_products} total products")
-    return _collect_product_links(page, log_cb)
+    _log(log_cb, f"Finished scanning. Found {len(all_product_links)} total products")
+    return all_product_links
 
 
 def _collect_product_links(page, log_cb=None) -> list:
