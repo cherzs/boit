@@ -13,6 +13,7 @@ Features:
 
 import os
 import threading
+import time
 import streamlit as st
 from datetime import datetime
 
@@ -170,6 +171,17 @@ with st.sidebar:
             if st.button("🗑️ Logout", use_container_width=True):
                 os.remove(engine.AUTH_FILE)
                 st.rerun()
+    
+    # Import from Chrome button
+    if st.button("📥 Import from Chrome/Edge", use_container_width=True):
+        with st.spinner("Importing session from browser…"):
+            success = engine.import_session_from_chrome(log_cb=add_log)
+        if success:
+            st.success("Session imported!")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.error("Failed to import. Make sure you are logged in to ZeusX in Chrome/Edge.")
 
     st.markdown("---")
     st.markdown("## ⚙️ Settings")

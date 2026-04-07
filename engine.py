@@ -118,59 +118,117 @@ def save_session(context):
 
 def open_login_browser(log_cb=None):
     """
-    Open ZeusX in a Playwright browser for login.
-    User can login manually, then session will be saved to auth.json
+    Open ZeusX in user's default browser for manual login.
+    User needs to manually copy cookies afterward.
     """
-    _log(log_cb, "Opening ZeusX browser for login...")
+    _log(log_cb, "Opening ZeusX in your default browser...")
+    _log(log_cb, "Please login manually (use Email/Password, NOT Google login)")
     
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=False)
-        w = random.randint(1280, 1920)
-        h = random.randint(800, 1080)
-        context = browser.new_context(viewport={"width": w, "height": h})
-        page = context.new_page()
-        if HAS_STEALTH:
-            stealth_sync(page)
-        
+    webbrowser.open_new_tab(f"{BASE_URL}/login")
+    
+    _log(log_cb, "After login, use 'Import from Chrome' button to copy session")
+
+
+def import_session_from_chrome(log_cb=None):
+    """
+    Import cookies from Chrome/Edge browser to create auth.json
+    """
+    import sqlite3
+    import shutil
+    import tempfile
+    
+    _log(log_cb, "Attempting to import session from Chrome/Edge...")
+    
+    # Possible Chrome/Edge cookie paths on Windows
+    cookie_paths = []
+    home = os.path.expanduser("~")
+    
+    # Chrome paths
+    chrome_path = os.path.join(home, r"AppData\Local\Google\Chrome\User Data\Default\Network\Cookies")
+    if os.path.exists(chrome_path):
+        cookie_paths.append(("Chrome", chrome_path))
+    
+    # Edge paths
+    edge_path = os.path.join(home, r"AppData\Local\Microsoft\Edge\User Data\Default\Network\Cookies")
+    if os.path.exists(edge_path):
+        cookie_paths.append(("Edge", edge_path))
+    
+    if not cookie_paths:
+        _log(log_cb, "❌ Chrome or Edge cookies not found")
+        return False
+    
+    for browser_name, cookie_db in cookie_paths:
         try:
-            page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
-            _log(log_cb, "Browser opened. Please login manually in the browser window.")
-            _log(log_cb, "Browser will auto-detect successful login and save session...")
+            _log(log_cb, f"Trying {browser_name}...")
             
-            # Wait for login to complete (check for redirect to dashboard or my-listing)
-            logged_in = False
-            max_wait = 300  # Wait up to 5 minutes
-            for i in range(max_wait):
-                time.sleep(1)
-                current_url = page.url
-                
-                # Check if already logged in (redirected to dashboard or my-listing)
-                if "/my-listing" in current_url or "/dashboard" in current_url:
-                    logged_in = True
-                    break
-                
-                # Also check for user menu/profile indicator
-                try:
-                    user_menu = page.query_selector('[class*="user-menu"], [class*="profile"], [class*="avatar"], [class*="dropdown-toggle"]')
-                    if user_menu:
-                        logged_in = True
-                        break
-                except:
-                    pass
-                
-                if i % 10 == 0:  # Log every 10 seconds
-                    _log(log_cb, f"Waiting for login... ({i}s)")
+            # Copy cookies to temp file (because Chrome might have it locked)
+            temp_dir = tempfile.gettempdir()
+            temp_cookie = os.path.join(temp_dir, f"{browser_name.lower()}_cookies_temp.db")
+            shutil.copy2(cookie_db, temp_cookie)
             
-            if logged_in:
-                save_session(context)
-                _log(log_cb, "✅ Login successful! Session saved to auth.json")
-            else:
-                _log(log_cb, "⚠️ Login timeout. Please try again.")
+            conn = sqlite3.connect(temp_cookie)
+            cursor = conn.cursor()
+            
+            # Query cookies for zeusx.com domain
+            cursor.execute("""
+                SELECT name, value, host_key, path, expires_utc, is_secure, is_httponly
+                FROM cookies 
+                WHERE host_key LIKE '%zeusx%'
+            """)
+            
+            cookies = cursor.fetchall()
+            conn.close()
+            
+            if not cookies:
+                _log(log_cb, f"No ZeusX cookies found in {browser_name}")
+                continue
+            
+            # Convert to Playwright storage state format
+            storage_state = {
+                "cookies": [],
+                "origins": []
+            }
+            
+            for name, value, host_key, path, expires_utc, is_secure, is_httponly in cookies:
+                # Convert Chrome's expires_utc (microseconds since 1601) to Unix timestamp (seconds)
+                if expires_utc and expires_utc != 0:
+                    expires = (expires_utc - 11644473600000000) / 1000000
+                else:
+                    expires = -1
                 
+                cookie = {
+                    "name": name,
+                    "value": value,
+                    "domain": host_key,
+                    "path": path or "/",
+                    "expires": expires,
+                    "httpOnly": bool(is_httponly),
+                    "secure": bool(is_secure),
+                    "sameSite": "Lax"
+                }
+                storage_state["cookies"].append(cookie)
+            
+            # Save to auth.json
+            with open(AUTH_FILE, 'w', encoding='utf-8') as f:
+                json.dump(storage_state, f, indent=2)
+            
+            _log(log_cb, f"✅ Session imported from {browser_name}! Saved to auth.json")
+            _log(log_cb, f"   Found {len(cookies)} ZeusX cookies")
+            
+            # Cleanup temp file
+            try:
+                os.remove(temp_cookie)
+            except:
+                pass
+                
+            return True
+            
         except Exception as e:
-            _log(log_cb, f"Error during login: {e}")
-        finally:
-            browser.close()
+            _log(log_cb, f"Error reading {browser_name} cookies: {e}")
+            continue
+    
+    _log(log_cb, "❌ Failed to import session from any browser")
+    return False
 
 
 def _new_context(pw, headless: bool = False):
