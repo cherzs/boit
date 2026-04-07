@@ -117,19 +117,23 @@ Pastikan kamu masih di dalam virtual environment (ada tulisan `(venv)` di CMD).
 
 ### **Step 5: Konfigurasi Bot**
 
-Bot membutuhkan file konfigurasi agar bisa login ke ZeusX.
+Bot membutuhkan file konfigurasi untuk menyimpan kredensial dan pengaturan.
 
-1. Di dalam folder bot, buka file `config.json`
+1. Copy file `config.json.template` dan rename jadi `config.json`
 
 2. Isi dengan kredensial ZeusX kamu:
    ```json
    {
+     "interval_minutes": 10,
+     "headless": false,
      "email": "emailkamu@example.com",
      "password": "passwordkamu"
    }
    ```
 
-3. Save file tersebut
+3. **Fitur Auto-Fill**: Email dan password akan otomatis terisi saat browser login terbuka
+
+4. Save file tersebut
 
 ⚠️ **Catatan Keamanan**: File `config.json` tidak akan di-push ke GitHub (sudah di-.gitignore), jadi aman untuk disimpan di local.
 
@@ -139,14 +143,22 @@ Bot membutuhkan file konfigurasi agar bisa login ke ZeusX.
 
 Pilih salah satu cara login:
 
-#### **Opsi A: Login Otomatis (Import dari Chrome/Edge)**
+#### **Opsi A: Auto-Fill Login (Recommended)**
+1. Pastikan `config.json` sudah diisi email dan password
+2. Klik **"▶️ Start Bot"** atau **"🔍 Scan My Products"**
+3. Browser akan terbuka dan **form login otomatis terisi**
+4. **Solve CAPTCHA manual** (klik "I'm not a robot")
+5. Klik tombol **Login**
+6. Selesai! Bot akan lanjut otomatis
+
+#### **Opsi B: Login Otomatis (Import dari Chrome/Edge)**
 1. Login ke ZeusX di browser Chrome/Edge kamu (https://zeusx.com/login)
 2. Jangan logout, biarkan tetap login
 3. Buka dashboard bot → klik tombol **"📥 Import from Chrome/Edge"**
 4. Session akan otomatis tersimpan
 
-#### **Opsi B: Login Manual (Copy Cookie)**
-Jika opsi A tidak berfungsi:
+#### **Opsi C: Login Manual (Copy Cookie)**
+Jika opsi lain tidak berfungsi:
 1. Copy file `auth.json.template` dan rename jadi `auth.json`
 2. Buka ZeusX di browser → Login → Buka DevTools (F12)
 3. Copy cookie session dari browser

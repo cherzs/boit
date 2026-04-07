@@ -1185,15 +1185,87 @@ def relist_product(product: dict, headless: bool = False, log_cb=None) -> bool:
 # MANUAL RUN LOGIC
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _auto_fill_login_form(page, log_cb=None):
+    """
+    Auto-fill login form with credentials from config.json.
+    Returns True if form was filled, False otherwise.
+    """
+    try:
+        cfg = load_config()
+        email = cfg.get("email", "").strip()
+        password = cfg.get("password", "").strip()
+        
+        if not email or not password:
+            _log(log_cb, "   ℹ️  No credentials in config.json - manual entry required")
+            return False
+        
+        # Try to find and fill email/username field
+        email_filled = False
+        email_selectors = [
+            'input[type="email"]',
+            'input[name="email"]',
+            'input[id*="email" i]',
+            'input[placeholder*="email" i]',
+            'input[type="text"]',
+        ]
+        
+        for selector in email_selectors:
+            try:
+                field = page.query_selector(selector)
+                if field and field.is_visible():
+                    field.fill(email)
+                    _log(log_cb, f"   ✅ Email filled: {email}")
+                    email_filled = True
+                    break
+            except:
+                continue
+        
+        # Try to find and fill password field
+        password_filled = False
+        password_selectors = [
+            'input[type="password"]',
+            'input[name="password"]',
+            'input[id*="password" i]',
+            'input[placeholder*="password" i]',
+        ]
+        
+        for selector in password_selectors:
+            try:
+                field = page.query_selector(selector)
+                if field and field.is_visible():
+                    field.fill(password)
+                    _log(log_cb, "   ✅ Password filled")
+                    password_filled = True
+                    break
+            except:
+                continue
+        
+        if email_filled and password_filled:
+            _log(log_cb, "   ℹ️  Form auto-filled. Please solve CAPTCHA (if any) and click Login")
+            return True
+        else:
+            _log(log_cb, "   ⚠️  Could not auto-fill form - please enter manually")
+            return False
+            
+    except Exception as e:
+        _log(log_cb, f"   ⚠️  Error auto-filling form: {e}")
+        return False
+
+
 def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_seconds=300):
     """
     Wait for user to login manually in the opened browser.
     Handles CAPTCHA detection - tells user to solve it manually.
+    Auto-fills credentials from config.json.
     Returns True if login successful, False if timeout or stopped.
     """
     _log(log_cb, "⏳ Waiting for you to login...")
     _log(log_cb, "   ⚠️  Use Email/Password (NOT Google Login)")
     _log(log_cb, "   Google akan error 'This browser is not secure'")
+    
+    # Auto-fill credentials
+    _log(log_cb, "   📝 Auto-filling credentials from config...")
+    _auto_fill_login_form(page, log_cb)
     
     captcha_warned = False
     
@@ -1213,7 +1285,7 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
         if not captcha_warned and _detect_captcha(page):
             _log(log_cb, "🤖 CAPTCHA detected!")
             _log(log_cb, "   Please solve the CAPTCHA manually in the browser")
-            _log(log_cb, "   Then complete the login")
+            _log(log_cb, "   Then click Login button")
             captcha_warned = True
         
         # Log every 10 seconds
