@@ -171,27 +171,31 @@ def api_import():
 def api_scan():
     if bot_state["running"]:
         return jsonify({"error": "Stop the bot first"}), 400
-    
-    # Check session
-    has_sess = engine.has_session()
-    print(f"DEBUG: has_session = {has_sess}")
-    
-    if not has_sess:
-        return jsonify({"error": "Login first. Click 'Open ZeusX Login' or 'Import from Browser'"}), 400
 
     try:
         cfg = engine.load_config()
         data = request.get_json(force=True) or {}
         store_url = data.get("store_url", "").strip()
         
-        print(f"DEBUG: store_url = {store_url}")
+        print(f"DEBUG: store_url = '{store_url}'")
+        
+        # Determine scan mode
+        is_public_scan = bool(store_url)
+        print(f"DEBUG: is_public_scan = {is_public_scan}")
+        
+        # Only check session for My Products scan (not for Public Store)
+        if not is_public_scan:
+            has_sess = engine.has_session()
+            print(f"DEBUG: has_session = {has_sess}")
+            if not has_sess:
+                return jsonify({"error": "Login first. Click 'Open ZeusX Login' or 'Import from Browser'"}), 400
 
         def do_scan():
             try:
                 engine.scan_all_products(
                     headless=cfg.get("headless", False),
                     log_cb=log_callback,
-                    store_url=store_url,
+                    store_url=store_url,  # Empty = my-listing, Has value = public store
                 )
             except Exception as e:
                 log_callback(f"[ERROR] Scan failed: {e}")
@@ -202,7 +206,9 @@ def api_scan():
 
         t = threading.Thread(target=do_scan, daemon=True)
         t.start()
-        return jsonify({"ok": True, "message": "Scanning started"})
+        
+        msg = "Scanning public store..." if is_public_scan else "Scanning your products..."
+        return jsonify({"ok": True, "message": msg})
     except Exception as e:
         print(f"DEBUG: Exception in api_scan: {e}")
         import traceback
