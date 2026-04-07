@@ -179,12 +179,23 @@ with st.sidebar:
         else:
             st.error("❌ Failed to import. Make sure you are logged in to ZeusX in Chrome/Edge.")
     
-    # Option 3: Manual login
+    # Option 3: Open ZeusX with Auto-fill (if credentials exist)
+    cfg_check = engine.load_config()
+    has_creds = bool(cfg_check.get("username", "").strip() and cfg_check.get("password", "").strip())
+    
     st.markdown("<div style='margin:5px 0;'></div>", unsafe_allow_html=True)
-    if st.button("🌐 Open ZeusX Login", use_container_width=True):
-        with st.spinner("Opening browser…"):
-            engine.open_login_browser(log_cb=add_log)
-        st.rerun()
+    if has_creds:
+        # Auto-fill available
+        if st.button("🌐 Open ZeusX (Auto-fill)", use_container_width=True):
+            with st.spinner("Opening browser with auto-fill…"):
+                engine.open_login_browser(log_cb=add_log, autofill=True)
+            st.rerun()
+    else:
+        # No credentials, manual only
+        if st.button("🌐 Open ZeusX Login", use_container_width=True):
+            with st.spinner("Opening browser…"):
+                engine.open_login_browser(log_cb=add_log, autofill=False)
+            st.rerun()
     
     # Logout button
     if engine.has_session():

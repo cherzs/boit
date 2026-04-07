@@ -178,20 +178,74 @@ def save_session(context):
     context.storage_state(path=AUTH_FILE)
 
 
-def open_login_browser(log_cb=None):
+def open_login_browser(log_cb=None, autofill=False):
     """
-    Open ZeusX in user's default browser for manual login.
-    User needs to manually copy cookies afterward.
+    Open ZeusX in browser for login.
+    
+    Args:
+        log_cb: Callback for logging
+        autofill: If True, use Playwright browser with auto-fill credentials
+                 If False, use default browser (Chrome/Edge) for manual login
     """
-    _log(log_cb, "="*50)
-    _log(log_cb, "Opening ZeusX in your default browser...")
-    _log(log_cb, "⚠️ IMPORTANT: Use Email/Password to login")
-    _log(log_cb, "   (Google Login will show 'insecure browser' error)")
-    _log(log_cb, "="*50)
+    cfg = load_config()
+    username = cfg.get("username", "").strip()
+    password = cfg.get("password", "").strip()
+    has_creds = bool(username and password)
     
-    webbrowser.open_new_tab(f"{BASE_URL}/login")
+    if autofill and has_creds:
+        # Open Playwright browser with auto-fill
+        _log(log_cb, "="*50)
+        _log(log_cb, "Opening ZeusX browser with Auto-Fill...")
+        _log(log_cb, f"   Username: {username}")
+        _log(log_cb, "="*50)
+        
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=False)
+            w = random.randint(1280, 1920)
+            h = random.randint(800, 1080)
+            
+            context = browser.new_context(viewport={"width": w, "height": h})
+            page = context.new_page()
+            if HAS_STEALTH:
+                stealth_sync(page)
+            
+            try:
+                page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
+                
+                # Auto-fill form
+                _auto_fill_login_form(page, log_cb)
+                
+                _log(log_cb, "✅ Browser opened with form auto-filled")
+                _log(log_cb, "   Please solve CAPTCHA (if any) and click Login")
+                _log(log_cb, "   Waiting for you to complete login...")
+                
+                # Wait for login
+                if _wait_for_login_in_browser(page, log_cb):
+                    save_session(context)
+                    _log(log_cb, "💾 Session saved! You can now start the bot.")
+                else:
+                    _log(log_cb, "⚠️  Login not completed. Try again.")
+                    
+            except Exception as e:
+                _log(log_cb, f"❌ Error: {e}")
+            finally:
+                # Keep browser open for a while so user can see
+                time.sleep(3)
+                browser.close()
     
-    _log(log_cb, "After login, use 'Import from Chrome' button to copy session")
+    else:
+        # Open default browser for manual login
+        _log(log_cb, "="*50)
+        _log(log_cb, "Opening ZeusX in your default browser...")
+        _log(log_cb, "⚠️ IMPORTANT: Use Email/Password to login")
+        _log(log_cb, "   (Google Login will show 'insecure browser' error)")
+        if not has_creds:
+            _log(log_cb, "   ℹ️  Tip: Add username/password to config.json for auto-fill")
+        _log(log_cb, "="*50)
+        
+        webbrowser.open_new_tab(f"{BASE_URL}/login")
+        
+        _log(log_cb, "After login, use '📥 Import from Chrome' button to copy session")
 
 
 def import_session_from_chrome(log_cb=None):
