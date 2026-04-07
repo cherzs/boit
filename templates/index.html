@@ -1316,6 +1316,13 @@
             showToast(currentScanMode === 'public' ? 'Scanning public store...' : 'Scanning your products...', 'info');
             const res = await api('scan', 'POST', { store_url: storeUrl });
             if (res) showToast('Scan started! Check the log.', 'success');
+            await saveSettings();
+
+            const storeUrl = document.getElementById('storeUrl').value.trim();
+            document.getElementById('scanBtn').disabled = true;
+            showToast('Scanning products...', 'info');
+            const res = await api('scan', 'POST', { store_url: storeUrl });
+            if (res) showToast('Scan started! Check the log.', 'success');
         }
 
         async function doStart() {
