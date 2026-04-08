@@ -1111,11 +1111,13 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
             product_row = page.get_by_text(short_title, exact=False).first
 
     menu_btn_clicked = False
+    fallback_menu_btn = None
+    
     if not product_row.is_visible():
         # Fallback: if we searched and there's a menu button, just assume it's our product
-        menu_btn = page.locator("button[class*='more-action-button']").first
-        if menu_btn.is_visible():
-            menu_btn.click()
+        fallback_menu_btn = page.locator("button[class*='more-action-button']").first
+        if fallback_menu_btn and fallback_menu_btn.is_visible():
+            fallback_menu_btn.click()
             _random_delay(1, 2)
             menu_btn_clicked = True
         else:
