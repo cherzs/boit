@@ -1086,43 +1086,56 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
 
     _random_delay(1, 2)
 
-    # 1. ALWAYS Search first using the text box provided by the user
-    search_input = page.locator("input.input-search-small_input-search__vaRoh, input[placeholder*='Search']").first
-    if search_input.is_visible():
-        search_input.fill(title[:30]) # safe substring
-        page.keyboard.press("Enter")
-        _log(log_cb, "   Searched product via My Listing search bar")
-        try:
-            page.wait_for_load_state("networkidle", timeout=5000)
-        except:
-            pass
-        _random_delay(2, 3)
-
-    # Scroll to ensure elements load
-    for _ in range(2):
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        _random_delay(0.5, 1)
-
-    # 2. Try to find the item
-    product_row = page.locator(f"text='{title}'").first
-    if not product_row.is_visible():
-        short_title = title[:25].strip()
+    # Cari produk by name di /my-listing (navigasi via ?page=X)
+    _log(log_cb, "   Searching for product in My Listing...")
+    
+    escaped_title = title.replace("'", "\\'")
+    short_title = title[:25].strip()
+    product_row = None
+    max_pages = 50  # Maksimal 50 halaman
+    
+    for page_num in range(1, max_pages + 1):
+        # Kalau bukan halaman 1, navigasi ke URL dengan ?page=X
+        if page_num > 1:
+            try:
+                page.goto(f"{BASE_URL}/my-listing?page={page_num}", wait_until="domcontentloaded", timeout=15_000)
+                _random_delay(1, 2)
+            except:
+                break
+        
+        # Scroll untuk load semua produk di halaman ini
+        for _ in range(3):
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            _random_delay(0.5, 1)
+        
+        # Coba cari dengan title lengkap
+        product_row = page.locator(f"text='{escaped_title}'").first
+        if product_row.is_visible():
+            _log(log_cb, f"   Found product on page {page_num}")
+            break
+            
+        # Coba cari dengan short title
         if short_title:
             product_row = page.get_by_text(short_title, exact=False).first
+            if product_row.is_visible():
+                _log(log_cb, f"   Found product (short title) on page {page_num}")
+                break
+        
+        # Produk tidak ditemukan di halaman ini, lanjut ke halaman berikutnya
+        if page_num < max_pages:
+            _log(log_cb, f"   Not found on page {page_num}, checking page {page_num + 1}...")
+            continue
+        else:
+            # Sudah halaman terakhir, produk tidak ditemukan
+            _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on any page")
+            return False
 
     menu_btn_clicked = False
     fallback_menu_btn = None
     
-    if not product_row.is_visible():
-        # Fallback: if we searched and there's a menu button, just assume it's our product
-        fallback_menu_btn = page.locator("button[class*='more-action-button']").first
-        if fallback_menu_btn and fallback_menu_btn.is_visible():
-            fallback_menu_btn.click()
-            _random_delay(1, 2)
-            menu_btn_clicked = True
-        else:
-            _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on any page")
-            return False
+    if not product_row or not product_row.is_visible():
+        _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}'")
+        return False
 
     try:
         if not menu_btn_clicked:
