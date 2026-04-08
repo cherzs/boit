@@ -1139,30 +1139,49 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
 
     try:
         if not menu_btn_clicked:
-            # Find the closest "..." menu button near this product
-            # Selector: button dengan class yang mengandung 'more-actions-button' (dengan 's')
-            parent = product_row.locator("xpath=ancestor::*[contains(@class, 'listing') or contains(@class, 'item') or contains(@class, 'row') or self::tr or self::div[.//button]]").first
-
-            # Coba beberapa selector yang mungkin
+            _log(log_cb, "   Finding menu button for this product...")
+            
+            # Cari container/row produk ini dengan mencari ancestor yang paling dekat
+            # Coba cari parent card/row yang mengandung produk ini
+            parent_selectors = [
+                "xpath=ancestor::div[contains(@class, 'listing')]",
+                "xpath=ancestor::div[contains(@class, 'item')]",
+                "xpath=ancestor::div[contains(@class, 'card')]",
+                "xpath=ancestor::tr",
+                "xpath=ancestor::div[contains(@class, 'row')]",
+                "xpath=..",  # parent langsung
+            ]
+            
+            parent = None
+            for sel in parent_selectors:
+                try:
+                    parent = product_row.locator(sel).first
+                    if parent and parent.is_visible():
+                        # Cek apakah parent ini punya menu button
+                        test_btn = parent.locator("button[class*='more-actions-button'], button[class*='more-action-button']").first
+                        if test_btn.is_visible():
+                            break
+                except:
+                    continue
+            
+            if not parent or not parent.is_visible():
+                parent = product_row  # fallback ke product_row sendiri
+            
+            # Cari menu button di dalam parent/container
             menu_btn_locator = parent.locator("button[class*='more-actions-button']").first
             if not menu_btn_locator.is_visible():
                 menu_btn_locator = parent.locator("button[class*='more-action-button']").first
             if not menu_btn_locator.is_visible():
-                menu_btn_locator = parent.locator("button:has(svg)").last
+                # Cari button dengan SVG (icon tiga titik)
+                menu_btn_locator = parent.locator("button:has(svg)").first
             
             if menu_btn_locator.is_visible():
                 _log(log_cb, "   Clicking menu button...")
                 menu_btn_locator.click()
-                _random_delay(1.5, 2.5)
+                _random_delay(2, 3)  # Tunggu dropdown muncul
             else:
-                # Fallback: Cari button SVG (tiga titik) di halaman
-                dots = page.locator("button[class*='more-actions-button']").first
-                if not dots.is_visible():
-                    dots = page.locator("button:has(svg[path*='12.0002'])").first
-                if dots.is_visible():
-                    _log(log_cb, "   Clicking menu button (fallback)...")
-                    dots.click()
-                    _random_delay(1.5, 2.5)
+                _log(log_cb, "   WARNING: Could not find menu button for this product")
+                return False
 
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not find product menu/click it: {e}")
@@ -1323,25 +1342,31 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not fill price: {e}")
 
-    # Multiple quantity checkbox + quantity value
-    quantity = product.get("quantity", 1)
-    if quantity and quantity > 1:
-        try:
-            # Check "Multiple quantity?" checkbox by clicking its container
-            qty_checkbox = page.locator("div.checkbox_checkbox__O5kmi:has-text('Multiple quantity?')").first
-            if qty_checkbox.is_visible():
-                qty_checkbox.click()
-                _random_delay(0.5, 1)
+    # Multiple quantity checkbox + quantity value (DEFAULT 20)
+    quantity = product.get("quantity", 20)
+    if not quantity or quantity < 1:
+        quantity = 20  # Default ke 20
+        
+    try:
+        # Check "Multiple quantity?" checkbox by clicking its container
+        qty_checkbox = page.locator("div.checkbox_checkbox__O5kmi:has-text('Multiple quantity?')").first
+        if qty_checkbox.is_visible():
+            qty_checkbox.click()
+            _random_delay(0.8, 1.5)
 
-                # Fill quantity input (appears after checking the box)
+            # Fill quantity input (appears after checking the box)
+            # Cari input placeholder "Eg: 10" atau input type number
+            qty_input = page.locator("input[placeholder*='Eg:']").first
+            if not qty_input.is_visible():
                 qty_input = page.locator("input[type='number']").last
-                if qty_input.is_visible():
-                    qty_input.fill("")
-                    qty_input.type(str(quantity), delay=_typing_delay())
-                    _log(log_cb, f"   Quantity: {quantity}")
-                    _random_delay(0.5, 1)
-        except Exception:
-            pass
+                
+            if qty_input.is_visible():
+                qty_input.fill("")
+                qty_input.type(str(quantity), delay=_typing_delay())
+                _log(log_cb, f"   Quantity: {quantity}")
+                _random_delay(0.5, 1)
+    except Exception:
+        pass
 
     # Sub-game dropdown (e.g. "Sailor Piece")
     sub_game = product.get("sub_game", "")
