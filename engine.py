@@ -1451,16 +1451,40 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     _random_delay(1, 2)
 
     # --- Check Terms checkbox ---
+    # Klik CHECKBOX-NYA, bukan text/link
     try:
-        # Click the exact terms container / label
-        terms_container = page.locator("div.checkbox_checkbox__O5kmi:has-text('I agree with')").last
-        if terms_container.is_visible():
-            terms_container.click()
+        # Cari checkbox input yang ada di dalam container dengan text "I agree with"
+        terms_checkbox_input = page.locator("div.checkbox_checkbox__O5kmi:has-text('I agree with') input[type='checkbox']").last
+        
+        if not terms_checkbox_input.is_visible():
+            # Fallback: cari checkbox input dalam label "I agree with"
+            terms_checkbox_input = page.locator("label:has-text('I agree with') input[type='checkbox']").last
+            
+        if not terms_checkbox_input.is_visible():
+            # Fallback: cari semua checkbox, lalu cek yang dekat dengan "I agree with"
+            checkboxes = page.locator("input[type='checkbox']").all()
+            for cb in checkboxes:
+                try:
+                    # Cek apakah checkbox ini dekat dengan text "I agree"
+                    parent = cb.locator("xpath=..")
+                    if parent.is_visible() and "I agree" in (parent.inner_text() or ""):
+                        terms_checkbox_input = cb
+                        break
+                except:
+                    continue
+        
+        if terms_checkbox_input and terms_checkbox_input.is_visible():
+            # Klik checkboxnya langsung
+            terms_checkbox_input.click()
+            _log(log_cb, "   Checked: I agree with terms")
             _random_delay(0.5, 1)
         else:
-            terms_checkbox = page.locator("text='I agree with'").last
-            if terms_checkbox.is_visible():
-                terms_checkbox.click()
+            # Last resort: klik container tapi usahakan jangan klik link
+            # Klik di pojok kiri container (biasanya checkbox di kiri, link di kanan)
+            terms_container = page.locator("div.checkbox_checkbox__O5kmi:has-text('I agree with')").last
+            if terms_container.is_visible():
+                terms_container.click(position={"x": 10, "y": 10})
+                _log(log_cb, "   Checked: I agree with terms (container click)")
                 _random_delay(0.5, 1)
     except Exception:
         pass
