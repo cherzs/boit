@@ -178,74 +178,87 @@ def save_session(context):
     context.storage_state(path=AUTH_FILE)
 
 
-def open_login_browser(log_cb=None, autofill=False):
+def open_login_browser(log_cb=None):
     """
-    Open ZeusX in browser for login.
-    
-    Args:
-        log_cb: Callback for logging
-        autofill: If True, use Playwright browser with auto-fill credentials
-                 If False, use default browser (Chrome/Edge) for manual login
+    Open ZeusX in user's default browser for manual login.
+    User needs to manually copy cookies afterward.
     """
-    cfg = load_config()
-    username = cfg.get("username", "").strip()
-    password = cfg.get("password", "").strip()
-    has_creds = bool(username and password)
+    _log(log_cb, "="*50)
+    _log(log_cb, "Opening ZeusX in your default browser...")
+    _log(log_cb, "⚠️ IMPORTANT: Use Email/Password to login")
+    _log(log_cb, "   (Google Login will show 'insecure browser' error)")
+    _log(log_cb, "="*50)
     
-    if autofill and has_creds:
-        # Open Playwright browser with auto-fill
-        _log(log_cb, "="*50)
-        _log(log_cb, "Opening ZeusX browser with Auto-Fill...")
-        _log(log_cb, f"   Username: {username}")
-        _log(log_cb, "="*50)
-        
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=False)
-            w = random.randint(1280, 1920)
-            h = random.randint(800, 1080)
-            
-            context = browser.new_context(viewport={"width": w, "height": h})
-            page = context.new_page()
-            if HAS_STEALTH:
-                stealth_sync(page)
-            
-            try:
-                page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
-                
-                # Auto-fill form
-                _auto_fill_login_form(page, log_cb)
-                
-                _log(log_cb, "✅ Browser opened with form auto-filled")
-                _log(log_cb, "   Please solve CAPTCHA (if any) and click Login")
-                _log(log_cb, "   Waiting for you to complete login...")
-                
-                # Wait for login
-                if _wait_for_login_in_browser(page, log_cb):
-                    save_session(context)
-                    _log(log_cb, "💾 Session saved! You can now start the bot.")
-                else:
-                    _log(log_cb, "⚠️  Login not completed. Try again.")
-                    
-            except Exception as e:
-                _log(log_cb, f"❌ Error: {e}")
-            finally:
-                # Keep browser open for a while so user can see
-                time.sleep(3)
-                browser.close()
+    webbrowser.open_new_tab(f"{BASE_URL}/login")
     
-    else:
-        # Open default browser for manual login
-        _log(log_cb, "="*50)
-        _log(log_cb, "Opening ZeusX in your default browser...")
-        _log(log_cb, "⚠️ IMPORTANT: Use Email/Password to login")
-        _log(log_cb, "   (Google Login will show 'insecure browser' error)")
-        if not has_creds:
-            _log(log_cb, "   ℹ️  Tip: Add username/password to config.json for auto-fill")
-        _log(log_cb, "="*50)
+    _log(log_cb, "After login, use 'Import from Chrome' button to copy session")
+
+
+def open_login_browser_manual(log_cb=None):
+    """
+    Open ZeusX login in a controlled Playwright browser.
+    User must enter credentials MANUALLY (no auto-fill).
+    Session will be saved automatically after successful login.
+    """
+    _log(log_cb, "="*50)
+    _log(log_cb, "🌐 Opening login browser...")
+    _log(log_cb, "="*50)
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        )
+        page = context.new_page()
         
-        webbrowser.open_new_tab(f"{BASE_URL}/login")
-        
-        _log(log_cb, "After login, use '📥 Import from Chrome' button to copy session")
+        try:
+            # Navigate to login page
+            _log(log_cb, "📍 Navigating to login page...")
+            page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30000)
+            page.wait_for_timeout(3000)
+            
+            _log(log_cb, "⏳ Please login manually...")
+            _log(log_cb, "   ⚠️  Use Username/Password (NOT Google Login)")
+            _log(log_cb, "   Google akan error 'This browser is not secure'")
+            _log(log_cb, "   📝 Masukkan email dan password secara manual")
+            
+            # Wait for login (check URL change)
+            logged_in = False
+            for i in range(300):  # 5 minutes timeout
+                current_url = page.url
+                if "/my-listing" in current_url or "/dashboard" in current_url:
+                    logged_in = True
+                    break
+                
+                # Check if login form still exists (still on login page)
+                try:
+                    page.wait_for_selector("input[name='email'], input[type='email']", timeout=1000)
+                except:
+                    # Form not found, might be logged in or on different page
+                    pass
+                
+                if i % 10 == 0 and i > 0:
+                    _log(log_cb, f"   Still waiting for login... ({i}s)")
+                
+                page.wait_for_timeout(1000)
+            
+            if logged_in:
+                _log(log_cb, "✅ Login detected! Saving session...")
+                auth_data = _extract_auth_data(page, context)
+                _save_auth(auth_data)
+                _log(log_cb, "✅ Session saved successfully!")
+                _log(log_cb, "You can now close the browser and start the bot.")
+                
+                # Keep browser open for a moment so user can see
+                page.wait_for_timeout(3000)
+            else:
+                _log(log_cb, "❌ Login timeout - no login detected")
+                
+        except Exception as e:
+            _log(log_cb, f"❌ Error during login: {e}")
+        finally:
+            browser.close()
 
 
 def import_session_from_chrome(log_cb=None):
@@ -418,7 +431,7 @@ def import_session_from_chrome(log_cb=None):
 
 def _new_context(pw, headless: bool = False):
     """Create a stealth browser context, re-using auth.json if available."""
-    browser = pw.chromium.launch(headless=headless)
+    browser = pw.chromium.launch(headless=headless, channel="chrome")
     w = random.randint(1280, 1920)
     h = random.randint(800, 1080)
     kwargs = {"viewport": {"width": w, "height": h}}
@@ -977,7 +990,7 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
     
     # Open browser (visible like login)
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=False)
+        browser = pw.chromium.launch(headless=False, channel="chrome")
         w = random.randint(1280, 1920)
         h = random.randint(800, 1080)
         
@@ -1494,22 +1507,18 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
     """
     Wait for user to login manually in the opened browser.
     Handles CAPTCHA detection - tells user to solve it manually.
-    Auto-fills credentials from config.json.
     Returns True if login successful, False if timeout or stopped.
     """
     _log(log_cb, "⏳ Waiting for you to login...")
     _log(log_cb, "   ⚠️  Use Username/Password (NOT Google Login)")
     _log(log_cb, "   Google akan error 'This browser is not secure'")
+    _log(log_cb, "   📝 Please enter your credentials manually and click Login")
     
-    # Auto-fill credentials
-    _log(log_cb, "   📝 Auto-filling credentials from config...")
-    _auto_fill_login_form(page, log_cb)
-    
-    # Check for CAPTCHA after auto-fill
+    # Check for CAPTCHA
     if _detect_captcha(page):
+        _log(log_cb, "   🤖 CAPTCHA detected! Please solve it...")
         if not _wait_for_captcha_solved(page, log_cb, stop_event, timeout_seconds=120):
             return False
-        # After CAPTCHA solved, user still needs to click login
         _log(log_cb, "   ✅ CAPTCHA solved! Now click the Login button")
     
     # Now wait for login to complete
@@ -1561,10 +1570,7 @@ def run_once(
     need_login = False
     
     if has_session():
-        session_valid = validate_session(log_cb)
-        if not session_valid:
-            _log(log_cb, "⚠️ Session expired - will need to re-login")
-            need_login = True
+        session_valid = True
     else:
         _log(log_cb, "⚠️ No session found - will need to login")
         need_login = True
@@ -1582,7 +1588,7 @@ def run_once(
     # Open ONE browser window for all products (like login)
     with sync_playwright() as pw:
         # Force headless=False so user can see the browser
-        browser = pw.chromium.launch(headless=False)
+        browser = pw.chromium.launch(headless=False, channel="chrome")
         w = random.randint(1280, 1920)
         h = random.randint(800, 1080)
         

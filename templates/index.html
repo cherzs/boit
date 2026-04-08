@@ -82,12 +82,128 @@
         /* ═══════════════════════════════════════════════════════════════
            LAYOUT
            ═══════════════════════════════════════════════════════════════ */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 320px;
+            padding: 2rem;
+            max-width: calc(100% - 320px);
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem 1.5rem;
             position: relative;
             z-index: 1;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 280px;
+            }
+
+            .main-content {
+                margin-left: 280px;
+                max-width: calc(100% - 280px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+            }
+
+            .app-container {
+                flex-direction: column;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SIDEBAR STYLES
+           ═══════════════════════════════════════════════════════════════ */
+        .sidebar-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+        }
+
+        .sidebar-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        .session-status {
+            padding: 0.8rem 1rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .session-status.active {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid var(--green);
+            color: var(--green);
+        }
+
+        .session-status.inactive {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--amber);
+            color: var(--amber);
+        }
+
+        .info-box {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
         }
 
         /* ═══════════════════════════════════════════════════════════════
@@ -294,6 +410,8 @@
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
+            width: 100%;
+            margin-bottom: 0.5rem;
         }
 
         .btn:hover {
@@ -357,6 +475,51 @@
             flex-wrap: wrap;
         }
 
+        .btn-group .btn {
+            width: auto;
+            flex: 1;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           TABS
+           ═══════════════════════════════════════════════════════════════ */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 0.7rem 1.2rem;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         /* ═══════════════════════════════════════════════════════════════
            PRODUCT LIST
            ═══════════════════════════════════════════════════════════════ */
@@ -387,6 +550,11 @@
             opacity: 0.45;
         }
 
+        .product-item.editing {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--accent);
+        }
+
         .product-title {
             font-weight: 600;
             font-size: 0.88rem;
@@ -396,10 +564,34 @@
             white-space: nowrap;
         }
 
+        .product-title-input {
+            width: 100%;
+            padding: 0.5rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+        }
+
         .product-price {
             color: var(--green);
             font-weight: 700;
             font-size: 0.95rem;
+            text-align: right;
+        }
+
+        .product-price-input {
+            width: 100%;
+            padding: 0.5rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--green);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
             text-align: right;
         }
 
@@ -425,6 +617,37 @@
             letter-spacing: 0.06em;
             color: var(--text-muted);
             font-weight: 600;
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 0.3rem;
+            justify-content: flex-end;
+        }
+
+        .product-actions button {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .product-actions button:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .product-actions button.save-btn:hover {
+            background: var(--green);
+        }
+
+        .product-actions button.cancel-btn:hover {
+            background: var(--red);
         }
 
         @media (max-width: 768px) {
@@ -453,6 +676,15 @@
 
         .empty-state p {
             font-size: 0.9rem;
+        }
+
+        .product-summary {
+            margin-top: 1rem;
+            padding: 0.8rem 1rem;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
         }
 
         /* ═══════════════════════════════════════════════════════════════
@@ -742,6 +974,16 @@
         .modal-link:hover {
             text-decoration: underline;
         }
+
+        /* Section divider like in app.py */
+        .sec {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #d0d0f0;
+            margin: 1.5rem 0 0.7rem 0;
+            padding-bottom: 0.35rem;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.25);
+        }
     </style>
 </head>
 
@@ -761,7 +1003,7 @@
                 </div>
                 <!-- Empty div for alignment if wanted, or we can just list them -->
                 <div class="modal-field"></div>
-                
+
                 <div class="modal-field">
                     <div class="label">Item Type</div>
                     <div class="value" id="modalCategory">-</div>
@@ -770,7 +1012,7 @@
                     <div class="label">Game</div>
                     <div class="value" id="modalGame">-</div>
                 </div>
-                
+
                 <div class="modal-field">
                     <div class="label">In Stock</div>
                     <div class="value" id="modalQty">-</div>
@@ -779,7 +1021,7 @@
                     <div class="label">Game</div>
                     <div class="value" id="modalSubGame">-</div>
                 </div>
-                
+
                 <div class="modal-field">
                     <div class="label">Delivery Method</div>
                     <div class="value" id="modalMethod">-</div>
@@ -805,156 +1047,169 @@
         </div>
     </div>
 
-    <!-- EDIT PRODUCT MODAL -->
-    <div class="modal-overlay" id="editModalOverlay" onclick="closeEditModal(event)">
-        <div class="modal" onclick="event.stopPropagation()" style="max-width:500px;">
-            <button class="modal-close" onclick="document.getElementById('editModalOverlay').classList.remove('active')">&times;</button>
-            <h2>Edit Product</h2>
-            
-            <div class="modal-field">
-                <div class="label">Product Name</div>
-                <input type="text" id="editTitle" style="width:100%; padding:0.7rem; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-family:inherit;">
-            </div>
-            
-            <div class="modal-field">
-                <div class="label">Price ($)</div>
-                <input type="number" id="editPrice" step="0.01" style="width:100%; padding:0.7rem; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-family:inherit;">
-            </div>
-            
-            <div class="btn-group" style="margin-top:1.5rem;">
-                <button class="btn btn-success" onclick="saveProductEdit()">💾 Save Changes</button>
-                <button class="btn btn-outline" onclick="document.getElementById('editModalOverlay').classList.remove('active')">Cancel</button>
-            </div>
-        </div>
-    </div>
+    <div class="app-container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <!-- Session Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">🔐 Session</div>
 
-    <div class="container">
-        <!-- HEADER -->
-        <div class="header">
-            <h1>ZeusX Auto Re-Lister</h1>
-            <p>Keep your products at the top — automated re-listing on schedule</p>
-        </div>
+                <div id="sessionStatus" class="session-status inactive">
+                    ⚠️ No session — login first
+                </div>
 
-        <!-- STATUS CARDS -->
-        <div class="cards">
-            <div class="card">
-                <div class="label">Bot Status</div>
-                <div class="value" id="statusVal" style="color:var(--red)">● STOPPED</div>
-            </div>
-            <div class="card">
-                <div class="label">Session</div>
-                <div class="value" id="sessionVal" style="color:var(--red)">No Login</div>
-            </div>
-            <div class="card">
-                <div class="label">Products</div>
-                <div class="value" id="productCountVal" style="color:var(--accent)">0</div>
-            </div>
-            <div class="card">
-                <div class="label">Last Success</div>
-                <div class="value" id="lastSuccessVal" style="color:var(--amber);font-size:0.9rem">-</div>
-            </div>
-        </div>
+                <button class="btn btn-primary" id="importBtn" onclick="importFromChrome()">
+                    📥 Import Session dari Chrome
+                </button>
 
-        <!-- SETTINGS + CONTROLS -->
-        <div class="top-grid">
-            <!-- Settings Panel -->
-            <div class="panel">
-                <div class="panel-title">Settings</div>
+                <button class="btn btn-outline" id="manualLoginBtn" onclick="openManualLogin()">
+                    🌐 Login Manual (Browser Baru)
+                </button>
 
+                <button class="btn btn-danger" id="logoutBtn" onclick="doLogout()" style="display:none;">
+                    🗑️ Logout / Clear Session
+                </button>
 
+                <div class="info-box" style="margin-top:1rem;">
+                    <strong>💡 Cara Login (Rekomendasi):</strong><br>
+                    1. Buka Chrome/Edge → Login ke ZeusX<br>
+                    2. Klik "📥 Import Session dari Chrome"<br>
+                    3. Session otomatis tersimpan<br>
+                    4. Ready to start bot!
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">⚙️ Settings</div>
+
+                <div class="form-group">
+                    <label>Seller Profile URL</label>
+                    <input type="text" id="sellerUrl" placeholder="https://www.zeusx.com/seller/username-123456">
+                </div>
+
+                <div class="form-group">
+                    <label>Interval (minutes)</label>
+                    <input type="number" id="intervalMinutes" min="1" max="1440" value="10" step="1">
+                </div>
 
                 <div class="toggle-row">
-                    <span>Headless Mode (invisible browser)</span>
+                    <span>Headless Mode</span>
                     <label class="switch">
                         <input type="checkbox" id="headless">
                         <span class="slider"></span>
                     </label>
                 </div>
 
-                <div style="margin-top:1rem">
-                    <button class="btn btn-outline" onclick="saveSettings()">Save Settings</button>
+                <button class="btn btn-outline" onclick="saveSettings()" style="margin-top:0.5rem;">
+                    Save Settings
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <div class="container">
+                <!-- HEADER -->
+                <div class="header">
+                    <h1>🚀 ZeusX Auto Re-Lister</h1>
+                    <p>Keep your products at the top — automatically re-list on schedule</p>
+                </div>
+
+                <!-- STATUS CARDS -->
+                <div class="cards">
+                    <div class="card">
+                        <div class="label">Bot Status</div>
+                        <div class="value" id="statusVal" style="color:var(--red)">● STOPPED</div>
+                    </div>
+                    <div class="card">
+                        <div class="label">Products</div>
+                        <div class="value" id="productCountVal" style="color:var(--accent)">0</div>
+                    </div>
+                    <div class="card">
+                        <div class="label">Cycles Done</div>
+                        <div class="value" id="cycleCountVal" style="color:var(--purple)">0</div>
+                    </div>
+                    <div class="card">
+                        <div class="label">Last Success</div>
+                        <div class="value" id="lastSuccessVal" style="color:var(--amber);font-size:0.9rem">—</div>
+                    </div>
+                </div>
+
+                <!-- PRODUCT SCANNING -->
+                <div class="panel">
+                    <div class="panel-title">📦 Scan Products</div>
+
+                    <p style="margin-bottom:1rem; color:var(--text-secondary); font-size:0.9rem;">
+                        <strong>Scan dari public store link</strong> - Menggunakan "Seller Profile URL" dari ⚙️
+                        Settings. Tidak butuh login.
+                    </p>
+                    <button class="btn btn-primary" id="scanPublicBtn" onclick="scanPublicStore()"
+                        style="margin-top:0.5rem;">
+                        🔍 Scan Store
+                    </button>
+
+                    <div id="scanMessage" style="margin-top:1rem;"></div>
+                </div>
+
+                <!-- PRODUCT LIST -->
+                <div class="panel">
+                    <div class="panel-title">
+                        My Products
+                        <span id="enabledInfo"
+                            style="font-size:0.75rem; color:var(--text-muted); margin-left:auto; font-weight:400"></span>
+                    </div>
+
+                    <div class="product-header">
+                        <span></span>
+                        <span>Product</span>
+                        <span style="text-align:right">Price</span>
+                        <span style="text-align:right">Last Re-listed</span>
+                        <span style="text-align:center">Images</span>
+                    </div>
+
+                    <div class="product-list" id="productList">
+                        <div class="empty-state">
+                            <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">📭</div>
+                            <p>No products loaded. Scan your seller profile to get started.</p>
+                        </div>
+                    </div>
+
+                    <div id="productSummary" class="product-summary" style="display:none;"></div>
+                </div>
+
+                <!-- CONTROLS -->
+                <div class="panel">
+                    <div class="panel-title">🎮 Controls</div>
+
+                    <div id="controlHint" style="margin-bottom:1rem; font-size:0.85rem; color:var(--text-muted);">
+                        ℹ️ Bot will open a browser window to re-list products
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-success" id="startBtn" onclick="doStart()">
+                            ▶️ Start Bot
+                        </button>
+                        <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled>
+                            ⏹️ Stop Bot
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LOG CONSOLE -->
+                <div class="panel">
+                    <div class="panel-title">📋 Activity Log</div>
+                    <div class="log-console" id="logConsole">
+                        <div class="log-line" style="color:var(--text-muted)">No activity yet. Scan products or start
+                            the bot.</div>
+                    </div>
+                    <div class="log-actions">
+                        <button class="btn btn-outline" onclick="clearLogs()"
+                            style="font-size:0.78rem; padding:0.5rem 1rem; width:auto;">🧹 Clear Logs</button>
+                    </div>
                 </div>
             </div>
-
-            <!-- Controls Panel -->
-            <div class="panel">
-                <div class="panel-title">Controls</div>
-
-                <!-- Scan Mode Tabs -->
-                <div class="scan-tabs" style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                    <button class="btn btn-sm active" id="tabPublic" onclick="setScanMode('public')" style="flex:1; font-size:0.8rem;">📍 Public Store</button>
-                    <button class="btn btn-sm" id="tabMy" onclick="setScanMode('my')" style="flex:1; font-size:0.8rem;">🔐 My Products</button>
-                </div>
-
-                <!-- Public Store URL Input -->
-                <div class="form-group" id="publicUrlGroup">
-                    <label>Public Store URL</label>
-                    <input type="text" id="storeUrl" placeholder="https://www.zeusx.com/seller/username-123456">
-                    <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">No login required for public stores</p>
-                </div>
-
-                <!-- Login / Import Buttons -->
-                <div class="btn-group" style="margin-bottom:0.8rem">
-                    <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">🌐 Open ZeusX Login</button>
-                </div>
-                
-                <div class="btn-group" style="margin-bottom:1.2rem">
-                    <button class="btn btn-outline" id="importBtn" onclick="doImport()" title="Import session from Chrome/Edge browser">📥 Import from Chrome/Edge</button>
-                </div>
-
-                <hr style="border-color:var(--border); margin:1rem 0">
-
-                <!-- Scan & Start Buttons -->
-                <div class="btn-group" style="margin-bottom:0.8rem">
-                    <button class="btn btn-outline" id="scanBtn" onclick="doScan()" style="flex:1;">🔍 Scan Products</button>
-                </div>
-
-                <div class="btn-group">
-                    <button class="btn btn-success" id="startBtn" onclick="doStart()" style="flex:1;">▶️ Start Bot</button>
-                    <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled style="flex:1;">⏹️ Stop Bot</button>
-                </div>
-
-                <p style="margin-top:1rem; font-size:0.8rem; color:var(--text-muted)" id="controlHint">
-                    1. Login/Import → 2. Scan Products → 3. Start Bot
-                </p>
-            </div>
-        </div>
-
-        <!-- PRODUCT LIST -->
-        <div class="panel">
-            <div class="panel-title">
-                My Products
-                <span id="enabledInfo"
-                    style="font-size:0.75rem; color:var(--text-muted); margin-left:auto; font-weight:400"></span>
-            </div>
-
-            <div class="product-header">
-                <span></span>
-                <span>Product</span>
-                <span style="text-align:right">Price</span>
-                <span style="text-align:right">Last Re-listed</span>
-                <span style="text-align:center">Images</span>
-            </div>
-
-            <div class="product-list" id="productList">
-                <div class="empty-state">
-                    <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">—</div>
-                    <p>No products loaded.<br>Click <strong>Scan Products</strong> to fetch your listings.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- LOG CONSOLE -->
-        <div class="panel">
-            <div class="panel-title">Activity Log</div>
-            <div class="log-console" id="logConsole">
-                <div class="log-line" style="color:var(--text-muted)">Waiting for activity...</div>
-            </div>
-            <div class="log-actions">
-                <button class="btn btn-outline" onclick="clearLogs()"
-                    style="font-size:0.78rem; padding:0.5rem 1rem">Clear</button>
-            </div>
-        </div>
+        </main>
     </div>
 
     <script>
@@ -977,7 +1232,6 @@
 
         socket.on('relist_complete', () => {
             showToast('Re-listing run complete!', 'success');
-            // Play a small notification sound if possible, or just the visual toast is fine.
             alert("✅ Re-listing complete! All enabled products have been processed.");
         });
 
@@ -1024,40 +1278,37 @@
                 statusEl.classList.remove('pulse');
             }
 
-            // Session
-            const sessionEl = document.getElementById('sessionVal');
-            sessionEl.textContent = s.has_session ? 'Active' : 'None';
-            sessionEl.style.color = s.has_session ? 'var(--green)' : 'var(--red)';
+            // Session status in sidebar
+            const sessionStatusEl = document.getElementById('sessionStatus');
+            if (s.has_session) {
+                sessionStatusEl.className = 'session-status active';
+                sessionStatusEl.innerHTML = '✅ Session active';
+                document.getElementById('logoutBtn').style.display = 'block';
+            } else {
+                sessionStatusEl.className = 'session-status inactive';
+                sessionStatusEl.innerHTML = '⚠️ No session — login first';
+                document.getElementById('logoutBtn').style.display = 'none';
+            }
 
             // Counts
             document.getElementById('productCountVal').textContent = s.product_count || 0;
-            document.getElementById('lastSuccessVal').textContent = s.last_success || '-';
+            document.getElementById('cycleCountVal').textContent = s.cycle_count || 0;
+            document.getElementById('lastSuccessVal').textContent = s.last_success || '—';
 
             // Buttons
             document.getElementById('startBtn').disabled = s.running;
             document.getElementById('stopBtn').disabled = !s.running;
-            document.getElementById('scanBtn').disabled = s.running;
-            document.getElementById('importBtn').disabled = s.running;
-
-            // Login button: show status
-            const loginBtn = document.getElementById('loginBtn');
-            if (s.has_session) {
-                loginBtn.textContent = 'Logged In';
-                loginBtn.disabled = true;
-                loginBtn.className = 'btn btn-outline';
-                loginBtn.style.color = 'var(--green)';
-                loginBtn.style.borderColor = 'var(--green)';
-            } else {
-                loginBtn.textContent = 'Login to ZeusX';
-                loginBtn.disabled = s.running;
-                loginBtn.className = 'btn btn-primary';
-                loginBtn.style.color = '';
-                loginBtn.style.borderColor = '';
-            }
+            document.getElementById('scanPublicBtn').disabled = s.running;
 
             // Settings
             if (s.settings) {
                 document.getElementById('headless').checked = s.settings.headless || false;
+                if (s.settings.seller_url) {
+                    document.getElementById('sellerUrl').value = s.settings.seller_url;
+                }
+                if (s.settings.interval_minutes) {
+                    document.getElementById('intervalMinutes').value = s.settings.interval_minutes;
+                }
             }
 
             // Enabled info
@@ -1068,6 +1319,8 @@
         // ═══════════════════════════════════════════════════════════
         // PRODUCT LIST
         // ═══════════════════════════════════════════════════════════
+        let editingProductUrl = null;
+
         async function loadProducts() {
             const products = await api('products');
             if (!products) return;
@@ -1077,13 +1330,42 @@
             if (products.length === 0) {
                 list.innerHTML = `
                     <div class="empty-state">
-                        <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">—</div>
-                        <p>No products loaded.<br>Click <strong>Scan Products</strong> to fetch your listings.</p>
+                        <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">📭</div>
+                        <p>No products loaded. Scan your seller profile to get started.</p>
                     </div>`;
+                document.getElementById('productSummary').style.display = 'none';
                 return;
             }
 
-            list.innerHTML = products.map((p, i) => `
+            const enabledCount = products.filter(p => p.enabled).length;
+
+            list.innerHTML = products.map((p, i) => {
+                const isEditing = editingProductUrl === p.url;
+
+                if (isEditing) {
+                    return `
+                    <div class="product-item editing">
+                        <div class="product-check">
+                            <input type="checkbox" ${p.enabled ? 'checked' : ''} disabled
+                                   title="Enable/disable re-listing">
+                        </div>
+                        <div>
+                            <input type="text" class="product-title-input" id="editTitle-${i}" 
+                                value="${escapeHtml(p.title)}" placeholder="Product Name">
+                        </div>
+                        <div>
+                            <input type="text" class="product-price-input" id="editPrice-${i}" 
+                                value="${escapeHtml(p.price)}" placeholder="Price">
+                        </div>
+                        <div class="product-meta">Editing...</div>
+                        <div class="product-actions">
+                            <button class="save-btn" onclick="saveProductEdit('${encodeURIComponent(p.url)}', ${i})" title="Save">✅</button>
+                            <button class="cancel-btn" onclick="cancelProductEdit()" title="Cancel">❌</button>
+                        </div>
+                    </div>`;
+                }
+
+                return `
                 <div class="product-item ${p.enabled ? '' : 'disabled'}" style="cursor:pointer" onclick="showProductDetail('${encodeURIComponent(p.url)}')">
                     <div class="product-check" onclick="event.stopPropagation()">
                         <input type="checkbox" ${p.enabled ? 'checked' : ''}
@@ -1092,13 +1374,15 @@
                     </div>
                     <div class="product-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</div>
                     <div class="product-price">$${escapeHtml(p.price)}</div>
-                    <div class="product-meta">${p.last_relisted ? p.last_relisted.substring(0, 16) : '-'}</div>
-                    <div style="display:flex; gap:8px; justify-content:center;" onclick="event.stopPropagation()">
-                        <button class="btn btn-sm" onclick="editProduct('${encodeURIComponent(p.url)}')" title="Edit" style="padding:4px 8px; font-size:0.75rem;">✏️</button>
-                        <span style="color:var(--text-muted); font-size:0.75rem;">${p.image_count} 🖼️</span>
-                    </div>
-                </div>
-            `).join('');
+                    <div class="product-meta">${p.last_relisted ? p.last_relisted.substring(0, 16) : '🔄 Never'}</div>
+                    <div class="product-imgs">🖼️ ${p.image_count}</div>
+                </div>`;
+            }).join('');
+
+            // Update summary
+            const summaryEl = document.getElementById('productSummary');
+            summaryEl.style.display = 'block';
+            summaryEl.innerHTML = `<strong>${enabledCount}</strong> of ${products.length} product(s) enabled for re-listing`;
         }
 
         function escapeHtml(str) {
@@ -1113,6 +1397,34 @@
             loadProducts();
             const s = await api('status');
             if (s) updateStatus(s);
+        }
+
+        function editProduct(encodedUrl) {
+            event.stopPropagation();
+            editingProductUrl = decodeURIComponent(encodedUrl);
+            loadProducts();
+        }
+
+        async function saveProductEdit(encodedUrl, index) {
+            const url = decodeURIComponent(encodedUrl);
+            const newTitle = document.getElementById(`editTitle-${index}`).value;
+            const newPrice = document.getElementById(`editPrice-${index}`).value;
+
+            // Update product via API (need to add this endpoint in server.py)
+            await api('product/update', 'POST', {
+                url,
+                title: newTitle,
+                price: parseFloat(newPrice) || 0
+            });
+
+            editingProductUrl = null;
+            loadProducts();
+            showToast('Product updated!', 'success');
+        }
+
+        function cancelProductEdit() {
+            editingProductUrl = null;
+            loadProducts();
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -1149,56 +1461,6 @@
         function closeModal(e) {
             if (e.target === document.getElementById('modalOverlay')) {
                 document.getElementById('modalOverlay').classList.remove('active');
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // EDIT PRODUCT
-        // ═══════════════════════════════════════════════════════════
-        let currentEditUrl = null;
-
-        async function editProduct(encodedUrl) {
-            const url = decodeURIComponent(encodedUrl);
-            currentEditUrl = url;
-            
-            // Get product details
-            const p = await api(`product/detail?url=${encodeURIComponent(url)}`);
-            if (!p) return;
-            
-            document.getElementById('editTitle').value = p.title || '';
-            document.getElementById('editPrice').value = p.price || '';
-            document.getElementById('editModalOverlay').classList.add('active');
-        }
-
-        function closeEditModal(e) {
-            if (e.target === document.getElementById('editModalOverlay')) {
-                document.getElementById('editModalOverlay').classList.remove('active');
-            }
-        }
-
-        async function saveProductEdit() {
-            if (!currentEditUrl) return;
-            
-            const newTitle = document.getElementById('editTitle').value.trim();
-            const newPrice = parseFloat(document.getElementById('editPrice').value);
-            
-            if (!newTitle || isNaN(newPrice)) {
-                showToast('Please enter valid title and price', 'error');
-                return;
-            }
-            
-            const res = await api('product/update', 'POST', {
-                url: currentEditUrl,
-                title: newTitle,
-                price: newPrice
-            });
-            
-            if (res) {
-                showToast('Product updated!', 'success');
-                document.getElementById('editModalOverlay').classList.remove('active');
-                loadProducts();  // Refresh list
-            } else {
-                showToast('Failed to update product', 'error');
             }
         }
 
@@ -1245,90 +1507,97 @@
         async function clearLogs() {
             await api('logs/clear', 'POST');
             document.getElementById('logConsole').innerHTML =
-                '<div class="log-line" style="color:var(--text-muted)">Waiting for activity...</div>';
+                '<div class="log-line" style="color:var(--text-muted)">No activity yet. Scan products or start the bot.</div>';
         }
 
         // ═══════════════════════════════════════════════════════════
-        // ACTIONS
+        // SIDEBAR ACTIONS
+        // ═══════════════════════════════════════════════════════════
+        async function importFromChrome() {
+            document.getElementById('importBtn').disabled = true;
+            showToast('Mengimpor session dari Chrome/Edge...', 'info');
+            const res = await api('import_chrome', 'POST');
+            if (res && res.ok) {
+                showToast('Session berhasil diimpor!', 'success');
+                const s = await api('status');
+                if (s) updateStatus(s);
+            } else {
+                showToast('Gagal import. Pastikan sudah login di Chrome/Edge.', 'error');
+            }
+            document.getElementById('importBtn').disabled = false;
+        }
+
+        async function openManualLogin() {
+            showToast('Opening browser...', 'info');
+            await api('login', 'POST');
+        }
+
+        async function doLogout() {
+            const res = await api('logout', 'POST');
+            if (res) {
+                showToast('Session cleared', 'info');
+                const s = await api('status');
+                if (s) updateStatus(s);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // SCAN ACTIONS
+        // ═══════════════════════════════════════════════════════════
+        async function scanPublicStore() {
+            const url = document.getElementById('sellerUrl').value.trim();
+
+            if (!url) {
+                showToast('Masukkan Seller Profile URL di bagian ⚙️ Settings terlebih dahulu!', 'error');
+                return;
+            }
+
+            await saveSettings(); // Pastikan settings tersimpan sebelum scan
+
+            document.getElementById('scanPublicBtn').disabled = true;
+            showToast(`Scanning: ${url}...`, 'info');
+
+            const res = await api('scan', 'POST', { store_url: url });
+            if (res) {
+                showToast('Scan complete!', 'success');
+                loadProducts();
+            }
+            document.getElementById('scanPublicBtn').disabled = false;
+        }
+
+        async function scanMyProducts() {
+            const s = await api('status');
+            if (!s || !s.has_session) {
+                showToast('Please login first! Klik Login di sidebar.', 'error');
+                return;
+            }
+
+            document.getElementById('scanPrivateBtn').disabled = true;
+            showToast('Scanning your products...', 'info');
+
+            const res = await api('scan', 'POST', { store_url: '' });  // Empty = use my-listing
+            if (res) {
+                showToast('Scan complete!', 'success');
+                loadProducts();
+            }
+            document.getElementById('scanPrivateBtn').disabled = false;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // SETTINGS & CONTROLS
         // ═══════════════════════════════════════════════════════════
         async function saveSettings() {
             const data = {
                 headless: document.getElementById('headless').checked,
+                seller_url: document.getElementById('sellerUrl').value,
+                interval_minutes: parseInt(document.getElementById('intervalMinutes').value) || 10,
             };
             const res = await api('settings', 'POST', data);
             if (res) showToast('Settings saved!', 'success');
         }
 
-        async function doLogin() {
-            document.getElementById('loginBtn').disabled = true;
-            showToast('Opening browser — log in then close it', 'info');
-            await api('login', 'POST');
-        }
-
-        async function doImport() {
-            document.getElementById('importBtn').disabled = true;
-            showToast('Importing session from Chrome/Edge...', 'info');
-            const res = await api('import', 'POST');
-            if (res && res.success) {
-                showToast('Session imported successfully!', 'success');
-                // Refresh status
-                const s = await api('status');
-                if (s) updateStatus(s);
-            } else {
-                showToast('Import failed. Make sure you are logged in to ZeusX in Chrome/Edge.', 'error');
-            }
-            document.getElementById('importBtn').disabled = false;
-        }
-
-        // Scan mode: 'public' or 'my'
-        let currentScanMode = 'public';
-
-        function setScanMode(mode) {
-            currentScanMode = mode;
-            const tabPublic = document.getElementById('tabPublic');
-            const tabMy = document.getElementById('tabMy');
-            const urlGroup = document.getElementById('publicUrlGroup');
-            
-            if (mode === 'public') {
-                tabPublic.classList.add('active');
-                tabMy.classList.remove('active');
-                urlGroup.style.display = 'block';
-            } else {
-                tabPublic.classList.remove('active');
-                tabMy.classList.add('active');
-                urlGroup.style.display = 'none';
-            }
-        }
-
-        async function doScan() {
-            await saveSettings();
-
-            const storeUrl = currentScanMode === 'public' 
-                ? document.getElementById('storeUrl').value.trim() 
-                : '';  // Empty for my-listing
-            
-            if (currentScanMode === 'public' && !storeUrl) {
-                showToast('Please enter a Public Store URL', 'error');
-                return;
-            }
-
-            document.getElementById('scanBtn').disabled = true;
-            showToast(currentScanMode === 'public' ? 'Scanning public store...' : 'Scanning your products...', 'info');
-            const res = await api('scan', 'POST', { store_url: storeUrl });
-            if (res) showToast('Scan started! Check the log.', 'success');
-            await saveSettings();
-
-            const storeUrl = document.getElementById('storeUrl').value.trim();
-            document.getElementById('scanBtn').disabled = true;
-            showToast('Scanning products...', 'info');
-            const res = await api('scan', 'POST', { store_url: storeUrl });
-            if (res) showToast('Scan started! Check the log.', 'success');
-        }
-
         async function doStart() {
-            // Save settings first
             await saveSettings();
-
             const res = await api('start', 'POST');
             if (res) showToast('Bot started', 'success');
         }

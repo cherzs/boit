@@ -179,23 +179,12 @@ with st.sidebar:
         else:
             st.error("❌ Failed to import. Make sure you are logged in to ZeusX in Chrome/Edge.")
     
-    # Option 3: Open ZeusX with Auto-fill (if credentials exist)
-    cfg_check = engine.load_config()
-    has_creds = bool(cfg_check.get("username", "").strip() and cfg_check.get("password", "").strip())
-    
+    # Option 3: Manual login
     st.markdown("<div style='margin:5px 0;'></div>", unsafe_allow_html=True)
-    if has_creds:
-        # Auto-fill available
-        if st.button("🌐 Open ZeusX (Auto-fill)", use_container_width=True):
-            with st.spinner("Opening browser with auto-fill…"):
-                engine.open_login_browser(log_cb=add_log, autofill=True)
-            st.rerun()
-    else:
-        # No credentials, manual only
-        if st.button("🌐 Open ZeusX Login", use_container_width=True):
-            with st.spinner("Opening browser…"):
-                engine.open_login_browser(log_cb=add_log, autofill=False)
-            st.rerun()
+    if st.button("🌐 Open ZeusX Login", use_container_width=True):
+        with st.spinner("Opening browser…"):
+            engine.open_login_browser(log_cb=add_log)
+        st.rerun()
     
     # Logout button
     if engine.has_session():
@@ -269,51 +258,25 @@ with c4:
 st.markdown('<div class="sec">📦 Products</div>', unsafe_allow_html=True)
 
 # Scan options
-scan_tab1, scan_tab2 = st.tabs(["📍 Scan Public Store (No Login)", "🔐 Scan My Products (Need Login)"])
+st.markdown("**Scan dari public store link** - Menggunakan *Seller Profile URL* dari ⚙️ Settings. Tidak butuh login.")
 
-with scan_tab1:
-    st.markdown("**Scan dari public store link** - Tidak perlu login")
-    
-    # Get URL to use: prioritize input value, fallback to config
-    default_url = seller_url if seller_url else ""
-    public_url = st.text_input(
-        "Public Store URL",
-        value=default_url,
-        placeholder="https://www.zeusx.com/seller/username-123456",
-        key="public_store_url"
-    )
-    
-    # Use the URL from input (which defaults to config value)
-    url_to_scan = public_url.strip() if public_url.strip() else seller_url
-    
-    if st.button("🔍 Scan Public Store", use_container_width=True, disabled=st.session_state.running):
-        if not url_to_scan:
-            st.error("Masukkan Public Store URL! Contoh: https://www.zeusx.com/seller/username-123456")
-        else:
-            with st.spinner(f"Scanning: {url_to_scan}…"):
-                scanned = engine.scan_all_products(
-                    store_url=url_to_scan,
-                    log_cb=add_log,
-                )
-                products = scanned
-                # Update seller_url in config for future use
-                cfg["seller_url"] = url_to_scan
-                engine.save_config(cfg)
-            st.rerun()
+# Use the URL from config/settings
+url_to_scan = seller_url.strip() if seller_url else ""
 
-with scan_tab2:
-    st.markdown("**Scan dari My Listing** - Perlu login ke ZeusX")
-    if st.button("🔍 Scan My Products", use_container_width=True, disabled=st.session_state.running):
-        if not engine.has_session():
-            st.error("Please login first! Klik 'Login' di sidebar.")
-        else:
-            with st.spinner("Scanning your products…"):
-                scanned = engine.scan_all_products(
-                    store_url="",  # Empty = use my-listing
-                    log_cb=add_log,
-                )
-                products = scanned
-            st.rerun()
+if st.button("🔍 Scan Products", use_container_width=True, disabled=st.session_state.running):
+    if not url_to_scan:
+        st.error("Masukkan Seller Profile URL di sidebar ⚙️ Settings terlebih dahulu!")
+    else:
+        with st.spinner(f"Scanning: {url_to_scan}…"):
+            scanned = engine.scan_all_products(
+                store_url=url_to_scan,
+                log_cb=add_log,
+            )
+            products = scanned
+            # Update config
+            cfg["seller_url"] = url_to_scan
+            engine.save_config(cfg)
+        st.rerun()
 
 # Info message
 if products:

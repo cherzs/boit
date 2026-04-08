@@ -64,7 +64,11 @@ def _build_status() -> dict:
         "enabled_count": enabled_count,
         "cycle_count": bot_state["cycle_count"],
         "last_success": bot_state["last_success"],
-        "settings": cfg,
+        "settings": {
+            "headless": cfg.get("headless", False),
+            "seller_url": cfg.get("seller_url", ""),
+            "interval_minutes": cfg.get("interval_minutes", 10),
+        },
     }
 
 
@@ -138,39 +142,25 @@ def api_login():
         return jsonify({"error": "Stop the bot first"}), 400
 
     def do_login():
-        engine.open_login_browser(log_cb=log_callback)
+        engine.open_login_browser_manual(log_cb=log_callback)
         socketio.emit("status_update", _build_status())
 
     t = threading.Thread(target=do_login, daemon=True)
     t.start()
-    return jsonify({"ok": True, "message": "Browser opening — log in then close it"})
-
-
-@app.route("/api/import", methods=["POST"])
-def api_import():
-    if bot_state["running"]:
-        return jsonify({"error": "Stop the bot first"}), 400
-    
-    def do_import():
-        success = engine.import_session_from_chrome(log_cb=log_callback)
-        socketio.emit("status_update", _build_status())
-        return success
-    
-    # Run in thread to not block
-    success = do_import()
-    return jsonify({"ok": True, "success": success, "message": "Import completed"})
+    return jsonify({"ok": True, "message": "Browser opening — log in manually then session will be saved"})
 
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     if bot_state["running"]:
         return jsonify({"error": "Stop the bot first"}), 400
-    if not engine.has_session():
-        return jsonify({"error": "Login first"}), 400
 
     cfg = engine.load_config()
     data = request.json or {}
     store_url = data.get("store_url", "").strip()
+    
+    if not store_url:
+        return jsonify({"error": "Store URL is required"}), 400
 
     def do_scan():
         engine.scan_all_products(
@@ -245,6 +235,10 @@ def api_settings():
     cfg = engine.load_config()
     if "headless" in data:
         cfg["headless"] = bool(data["headless"])
+    if "seller_url" in data:
+        cfg["seller_url"] = data["seller_url"]
+    if "interval_minutes" in data:
+        cfg["interval_minutes"] = int(data["interval_minutes"])
     engine.save_config(cfg)
     return jsonify({"ok": True, "settings": cfg})
 
@@ -266,22 +260,48 @@ def api_toggle_product():
 def api_update_product():
     data = request.json or {}
     url = data.get("url", "")
-    new_title = data.get("title", "").strip()
-    new_price = data.get("price", 0)
-    
-    if not url:
-        return jsonify({"error": "URL required"}), 400
-    if not new_title:
-        return jsonify({"error": "Title required"}), 400
-    
     products = engine.load_products()
     for p in products:
         if p.get("url") == url:
-            p["title"] = new_title
-            p["price"] = float(new_price)
+            if "title" in data:
+                p["title"] = data["title"]
+            if "price" in data:
+                try:
+                    p["price"] = float(data["price"])
+                except:
+                    pass
             engine.save_products(products)
-            return jsonify({"ok": True, "title": new_title, "price": new_price})
+            return jsonify({"ok": True})
     return jsonify({"error": "Product not found"}), 404
+
+
+@app.route("/api/import_chrome", methods=["POST"])
+def api_import_chrome():
+    if bot_state["running"]:
+        return jsonify({"error": "Stop the bot first"}), 400
+
+    def do_import():
+        success = engine.import_session_from_chrome(log_cb=log_callback)
+        socketio.emit("status_update", _build_status())
+        if success:
+            log_callback("✅ Session berhasil diimpor dari Chrome/Edge")
+        else:
+            log_callback("❌ Gagal import session. Pastikan kamu sudah login di Chrome/Edge.")
+
+    t = threading.Thread(target=do_import, daemon=True)
+    t.start()
+    return jsonify({"ok": True, "message": "Importing session from Chrome/Edge..."})
+
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    import os
+    if os.path.exists(engine.AUTH_FILE):
+        os.remove(engine.AUTH_FILE)
+        log_callback("🗑️ Session cleared")
+        socketio.emit("status_update", _build_status())
+        return jsonify({"ok": True})
+    return jsonify({"ok": True, "message": "No session to clear"})
 
 
 @app.route("/api/logs/clear", methods=["POST"])
