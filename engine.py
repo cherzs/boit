@@ -1155,7 +1155,7 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
 
     # Navigate to sell page - try multiple possible URLs
     sell_urls = [
-        f"{BASE_URL}/sell",
+        f"{BASE_URL}/create-offer",
         f"{BASE_URL}/create-listing",
     ]
 
