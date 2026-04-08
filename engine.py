@@ -80,27 +80,27 @@ def _interruptible_sleep(seconds: int, stop_event: threading.Event):
 
 def load_config() -> dict:
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"interval_minutes": 10, "headless": False}
 
 
 def save_config(cfg: dict):
-    with open(CONFIG_FILE, "w") as f:
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=4)
 
 
 def load_products() -> list:
     """Load saved product data from products.json."""
     if os.path.exists(PRODUCTS_FILE):
-        with open(PRODUCTS_FILE, "r") as f:
+        with open(PRODUCTS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return []
 
 
 def save_products(products: list):
     """Persist product data to products.json."""
-    with open(PRODUCTS_FILE, "w") as f:
+    with open(PRODUCTS_FILE, "w", encoding="utf-8") as f:
         json.dump(products, f, indent=4, ensure_ascii=False)
 
 
