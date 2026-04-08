@@ -1110,25 +1110,26 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
         if short_title:
             product_row = page.get_by_text(short_title, exact=False).first
 
+    menu_btn_clicked = False
     if not product_row.is_visible():
         # Fallback: if we searched and there's a menu button, just assume it's our product
         menu_btn = page.locator("button[class*='more-action-button']").first
         if menu_btn.is_visible():
             menu_btn.click()
             _random_delay(1, 2)
-            product_row = menu_btn # mock to bypass check
+            menu_btn_clicked = True
         else:
             _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on any page")
             return False
 
     try:
-        if product_row != menu_btn: # if we didn't already click the fallback
+        if not menu_btn_clicked:
             # Find the closest "..." menu button near this product
             parent = product_row.locator("xpath=ancestor::*[contains(@class, 'listing') or contains(@class, 'item') or contains(@class, 'row') or self::tr or self::div[.//button]]").first
 
-            menu_btn = parent.locator("button[class*='more-action-button'], button, .fa-ellipsis-v, .fa-ellipsis-h").last
-            if menu_btn.is_visible():
-                menu_btn.click()
+            menu_btn_locator = parent.locator("button[class*='more-action-button'], button, .fa-ellipsis-v, .fa-ellipsis-h").last
+            if menu_btn_locator.is_visible():
+                menu_btn_locator.click()
                 _random_delay(1, 2)
             else:
                 # Fallback: Just look anywhere near the product
