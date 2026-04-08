@@ -1131,14 +1131,14 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
         # 1. Attempt to find a robust container
         parent = product_row.locator("xpath=ancestor::*[contains(@class, 'listing') or contains(@class, 'item') or contains(@class, 'row') or self::tr or self::div[.//button]]").first
 
-        # Look for the three-dot menu button in the parent
-        menu_btn = parent.locator("button, [role='button'], .fa-ellipsis-v, .fa-ellipsis-h, [class*='ellipsis']").last
+        # Look for the three-dot menu button in the parent ("more-action-button" from user's HTML)
+        menu_btn = parent.locator("button[class*='more-action-button'], button, .fa-ellipsis-v, .fa-ellipsis-h").last
         if menu_btn.is_visible():
             menu_btn.click()
             _random_delay(0.5, 1)
         else:
             # Fallback: Just look anywhere near the product for an ellipsis button
-            dots = page.locator("text='...', .fa-ellipsis-v, .fa-ellipsis-h, [class*='ellipsis']").first
+            dots = page.locator("button[class*='more-action-button'], text='...', .fa-ellipsis-v, .fa-ellipsis-h").first
             if dots.is_visible():
                 dots.click()
                 _random_delay(0.5, 1)
@@ -1252,7 +1252,9 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
 
     # Title
     try:
-        title_input = page.locator("input[placeholder*='title' i], input[name*='title' i]").first
+        title_input = page.locator("xpath=//div[text()='Listing Title']/following::input").first
+        if not title_input.is_visible():
+            title_input = page.locator("input[placeholder*='Eg:']").first
         title_input.wait_for(timeout=10_000)
         title_input.click()
         title_input.fill("")
@@ -1266,15 +1268,18 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     # Price
     price = product.get("price", "1")
     try:
-        price_input = page.locator("input[placeholder*='price' i], input[name*='price' i]").first
+        price_input = page.locator("xpath=//div[contains(@class, 'input_label__zMh1l') and contains(., 'Price')]/following::input").first
+        if not price_input.is_visible():
+            price_input = page.locator("input[type='text']").nth(1)  # Fallback
+        
         if price_input.is_visible():
             price_input.click()
             price_input.fill("")
             price_input.type(str(price), delay=_typing_delay())
             _log(log_cb, f"   Price: ${price}")
             _random_delay(0.5, 1)
-    except Exception:
-        pass
+    except Exception as e:
+        _log(log_cb, f"   WARNING: Could not fill price: {e}")
 
     # Multiple quantity checkbox + quantity value
     quantity = product.get("quantity", 1)
@@ -1352,7 +1357,7 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     desc = product.get("description", "")
     if desc:
         try:
-            desc_editor = page.locator("[contenteditable='true'], textarea[placeholder*='description' i]").first
+            desc_editor = page.locator("[contenteditable='true'], .ck-editor__editable").first
             if desc_editor.is_visible():
                 desc_editor.click()
                 desc_editor.type(desc, delay=_typing_delay())
@@ -1380,16 +1385,21 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
 
     # --- Check Terms checkbox ---
     try:
-        terms_checkbox = page.locator("text='I agree'").first
-        if terms_checkbox.is_visible():
-            terms_checkbox.click()
+        terms_container = page.locator("div:has-text('I agree with Terms of Service')").last
+        if terms_container.is_visible():
+            terms_container.click()
             _random_delay(0.5, 1)
+        else:
+            terms_checkbox = page.locator("text='I agree'").last
+            if terms_checkbox.is_visible():
+                terms_checkbox.click()
+                _random_delay(0.5, 1)
     except Exception:
         pass
 
     # --- Submit: Click "List Items" ---
     try:
-        submit_btn = page.locator("button:has-text('List Items'), button:has-text('List Item')").first
+        submit_btn = page.locator("button:has-text('List Items')").first
         submit_btn.wait_for(timeout=5_000)
         submit_btn.click()
         _log(log_cb, "   Form submitted")
