@@ -256,6 +256,18 @@ def api_toggle_product():
     return jsonify({"error": "Product not found"}), 404
 
 
+@app.route("/api/product/toggle_all", methods=["POST"])
+def api_toggle_all_products():
+    data = request.json or {}
+    enable = data.get("enable", True)
+    products = engine.load_products()
+    if products:
+        for p in products:
+            p["enabled"] = bool(enable)
+        engine.save_products(products)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/product/update", methods=["POST"])
 def api_update_product():
     data = request.json or {}

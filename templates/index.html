@@ -531,7 +531,7 @@
 
         .product-item {
             display: grid;
-            grid-template-columns: 40px 1fr 100px 130px 80px;
+            grid-template-columns: 40px 1fr 100px 130px 60px 40px;
             align-items: center;
             gap: 1rem;
             padding: 0.9rem 1.2rem;
@@ -609,7 +609,7 @@
 
         .product-header {
             display: grid;
-            grid-template-columns: 40px 1fr 100px 130px 80px;
+            grid-template-columns: 40px 1fr 100px 130px 60px 40px;
             gap: 1rem;
             padding: 0 1.2rem 0.5rem;
             font-size: 0.7rem;
@@ -1161,11 +1161,15 @@
                     </div>
 
                     <div class="product-header">
-                        <span></span>
-                        <span>Product</span>
+                        <span class="product-check" style="text-align: center;">
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllProducts(this.checked)"
+                                title="Select/Deselect All">
+                        </span>
+                        <span>Product Name</span>
                         <span style="text-align:right">Price</span>
                         <span style="text-align:right">Last Re-listed</span>
                         <span style="text-align:center">Images</span>
+                        <span></span>
                     </div>
 
                     <div class="product-list" id="productList">
@@ -1344,7 +1348,7 @@
 
                 if (isEditing) {
                     return `
-                    <div class="product-item editing">
+                    <div class="product-item editing" onclick="event.stopPropagation()">
                         <div class="product-check">
                             <input type="checkbox" ${p.enabled ? 'checked' : ''} disabled
                                    title="Enable/disable re-listing">
@@ -1358,6 +1362,7 @@
                                 value="${escapeHtml(p.price)}" placeholder="Price">
                         </div>
                         <div class="product-meta">Editing...</div>
+                        <div class="product-imgs"></div>
                         <div class="product-actions">
                             <button class="save-btn" onclick="saveProductEdit('${encodeURIComponent(p.url)}', ${i})" title="Save">✅</button>
                             <button class="cancel-btn" onclick="cancelProductEdit()" title="Cancel">❌</button>
@@ -1376,6 +1381,9 @@
                     <div class="product-price">$${escapeHtml(p.price)}</div>
                     <div class="product-meta">${p.last_relisted ? p.last_relisted.substring(0, 16) : '🔄 Never'}</div>
                     <div class="product-imgs">🖼️ ${p.image_count}</div>
+                    <div class="product-actions" onclick="event.stopPropagation()">
+                        <button onclick="editProduct('${encodeURIComponent(p.url)}')" title="Edit Title/Price">✏️</button>
+                    </div>
                 </div>`;
             }).join('');
 
@@ -1383,6 +1391,10 @@
             const summaryEl = document.getElementById('productSummary');
             summaryEl.style.display = 'block';
             summaryEl.innerHTML = `<strong>${enabledCount}</strong> of ${products.length} product(s) enabled for re-listing`;
+
+            // Sync select-all checkbox
+            const sa = document.getElementById('selectAllCheckbox');
+            if (sa) sa.checked = (enabledCount === products.length && products.length > 0);
         }
 
         function escapeHtml(str) {
@@ -1394,6 +1406,13 @@
             event.stopPropagation();
             const url = decodeURIComponent(encodedUrl);
             await api('product/toggle', 'POST', { url });
+            loadProducts();
+            const s = await api('status');
+            if (s) updateStatus(s);
+        }
+
+        async function toggleAllProducts(enable) {
+            await api('product/toggle_all', 'POST', { enable });
             loadProducts();
             const s = await api('status');
             if (s) updateStatus(s);
