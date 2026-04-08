@@ -1067,53 +1067,78 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     title = product.get("title", "")
     _log(log_cb, f"Deleting: {title}")
 
-    try:
-        page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=30_000)
-    except PlaywrightTimeout:
-        _log(log_cb, "   WARNING: Could not load My Listing page")
+    found_product = False
+    max_pages = 15
+    product_row = None
+
+    for page_num in range(1, max_pages + 1):
+        target_url = f"{BASE_URL}/my-listing?page={page_num}" if page_num > 1 else f"{BASE_URL}/my-listing"
+        try:
+            page.goto(target_url, wait_until="domcontentloaded", timeout=30_000)
+        except PlaywrightTimeout:
+            _log(log_cb, "   WARNING: Could not load My Listing page")
+            return False
+
+        # Check for CAPTCHA
+        if _detect_captcha(page):
+            _log(log_cb, "   🤖 CAPTCHA detected on My Listing page!")
+            if not _wait_for_captcha_solved(page, log_cb, stop_event):
+                return False
+
+        # Wait for page to render
+        try:
+            page.wait_for_load_state("networkidle", timeout=10_000)
+        except PlaywrightTimeout:
+            pass
+
+        _random_delay(1, 2)
+
+        # Scroll to ensure elements load
+        for _ in range(4):
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            _random_delay(0.5, 1)
+
+        # 1. Try exact match first
+        product_row = page.locator(f"text='{title}'").first
+        
+        # 2. Try substring match (helps with emojis or truncations)
+        if not product_row.is_visible():
+            short_title = title[:25].strip()
+            if short_title:
+                product_row = page.get_by_text(short_title, exact=False).first
+
+        # 3. Fallback: try searching via ZeusX search box if it exists (only on first page attempt)
+        if not product_row.is_visible() and page_num == 1:
+            search_input = page.locator("input[placeholder*='earch']").first
+            if search_input.is_visible():
+                search_input.fill(title[:20])
+                page.keyboard.press("Enter")
+                _random_delay(2, 3)
+                product_row = page.get_by_text(title[:15], exact=False).first
+
+        if product_row and product_row.is_visible():
+            found_product = True
+            break
+            
+        _log(log_cb, f"   Not on page {page_num}, checking next page...")
+
+    if not found_product or not product_row.is_visible():
+        _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on any page")
         return False
 
-    # Check for CAPTCHA
-    if _detect_captcha(page):
-        _log(log_cb, "   🤖 CAPTCHA detected on My Listing page!")
-        if not _wait_for_captcha_solved(page, log_cb, stop_event):
-            return False
-
-    # Wait for page to render
     try:
-        page.wait_for_load_state("networkidle", timeout=10_000)
-    except PlaywrightTimeout:
-        pass
-
-    _random_delay(2, 3)
-
-    # Scroll to find the product
-    for _ in range(5):
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        _random_delay(1, 1.5)
-
-    # Find the product's "..." (three-dot menu) button
-    # Each listing row has a "..." menu — we need to match by title text
-    try:
-        # Find all listing rows/items that contain our product title
-        # ZeusX listings show the title as a link text
-        product_row = page.locator(f"text='{title}'").first
-        if not product_row.is_visible():
-            _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on My Listing page")
-            return False
-
         # Find the closest "..." menu button near this product
-        # Navigate up to the parent container and find the menu button
+        # 1. Attempt to find a robust container
         parent = product_row.locator("xpath=ancestor::*[contains(@class, 'listing') or contains(@class, 'item') or contains(@class, 'row') or self::tr or self::div[.//button]]").first
 
-        # Look for the three-dot menu button
-        menu_btn = parent.locator("button, [role='button']").last
+        # Look for the three-dot menu button in the parent
+        menu_btn = parent.locator("button, [role='button'], .fa-ellipsis-v, .fa-ellipsis-h, [class*='ellipsis']").last
         if menu_btn.is_visible():
             menu_btn.click()
             _random_delay(0.5, 1)
         else:
-            # Fallback: just click the "..." text near the product
-            dots = page.locator("text='...'").first
+            # Fallback: Just look anywhere near the product for an ellipsis button
+            dots = page.locator("text='...', .fa-ellipsis-v, .fa-ellipsis-h, [class*='ellipsis']").first
             if dots.is_visible():
                 dots.click()
                 _random_delay(0.5, 1)
@@ -1125,7 +1150,7 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     # Click "Cancel Offer" from the dropdown menu
     try:
         cancel_btn = page.locator("text='Cancel Offer'").first
-        cancel_btn.wait_for(timeout=5000)
+        cancel_btn.wait_for(state="visible", timeout=5000)
         cancel_btn.click()
         _random_delay(1, 2)
     except Exception as e:
