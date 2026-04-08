@@ -1140,18 +1140,29 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     try:
         if not menu_btn_clicked:
             # Find the closest "..." menu button near this product
+            # Selector: button dengan class yang mengandung 'more-actions-button' (dengan 's')
             parent = product_row.locator("xpath=ancestor::*[contains(@class, 'listing') or contains(@class, 'item') or contains(@class, 'row') or self::tr or self::div[.//button]]").first
 
-            menu_btn_locator = parent.locator("button[class*='more-action-button'], button, .fa-ellipsis-v, .fa-ellipsis-h").last
+            # Coba beberapa selector yang mungkin
+            menu_btn_locator = parent.locator("button[class*='more-actions-button']").first
+            if not menu_btn_locator.is_visible():
+                menu_btn_locator = parent.locator("button[class*='more-action-button']").first
+            if not menu_btn_locator.is_visible():
+                menu_btn_locator = parent.locator("button:has(svg)").last
+            
             if menu_btn_locator.is_visible():
+                _log(log_cb, "   Clicking menu button...")
                 menu_btn_locator.click()
-                _random_delay(1, 2)
+                _random_delay(1.5, 2.5)
             else:
-                # Fallback: Just look anywhere near the product
-                dots = page.locator("button[class*='more-action-button'], text='...', .fa-ellipsis-v, .fa-ellipsis-h").first
+                # Fallback: Cari button SVG (tiga titik) di halaman
+                dots = page.locator("button[class*='more-actions-button']").first
+                if not dots.is_visible():
+                    dots = page.locator("button:has(svg[path*='12.0002'])").first
                 if dots.is_visible():
+                    _log(log_cb, "   Clicking menu button (fallback)...")
                     dots.click()
-                    _random_delay(1, 2)
+                    _random_delay(1.5, 2.5)
 
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not find product menu/click it: {e}")
@@ -1159,21 +1170,42 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
 
     # Click "Cancel Offer" from the dropdown menu
     try:
+        _log(log_cb, "   Looking for Cancel Offer button...")
+        # Tunggu dropdown muncul
+        page.wait_for_timeout(1000)
+        
+        # Coba beberapa cara mencari tombol Cancel Offer
         cancel_btn = page.locator("text='Cancel Offer'").first
+        if not cancel_btn.is_visible():
+            # Coba dengan selector lain
+            cancel_btn = page.locator("button:has-text('Cancel Offer'), a:has-text('Cancel Offer')").first
+        if not cancel_btn.is_visible():
+            # Coba cari di dalam dropdown/menu
+            cancel_btn = page.locator("[class*='dropdown'] >> text='Cancel Offer', [class*='menu'] >> text='Cancel Offer'").first
+            
         cancel_btn.wait_for(state="visible", timeout=5000)
+        _log(log_cb, "   Clicking Cancel Offer...")
         cancel_btn.click()
-        _random_delay(1, 2)
+        _random_delay(1.5, 2.5)
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not click Cancel Offer: {e}")
         return False
 
     # Click "Remove Listing" in the confirmation dialog
     try:
+        _log(log_cb, "   Looking for Remove Listing button...")
+        # Tunggu dialog muncul
+        page.wait_for_timeout(1000)
+        
         remove_btn = page.locator("text='Remove Listing'").first
-        remove_btn.wait_for(timeout=5000)
+        if not remove_btn.is_visible():
+            remove_btn = page.locator("button:has-text('Remove Listing'), button[class*='danger'], button[class*='red']").first
+            
+        remove_btn.wait_for(state="visible", timeout=5000)
+        _log(log_cb, "   Clicking Remove Listing...")
         remove_btn.click()
         _random_delay(2, 3)
-        _log(log_cb, "   Listing deleted")
+        _log(log_cb, "   ✅ Listing deleted")
         return True
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not confirm removal: {e}")
