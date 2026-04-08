@@ -1067,84 +1067,78 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     title = product.get("title", "")
     _log(log_cb, f"Deleting: {title}")
 
-    found_product = False
-    max_pages = 15
-    product_row = None
-
-    for page_num in range(1, max_pages + 1):
-        target_url = f"{BASE_URL}/my-listing?page={page_num}" if page_num > 1 else f"{BASE_URL}/my-listing"
-        try:
-            page.goto(target_url, wait_until="domcontentloaded", timeout=30_000)
-        except PlaywrightTimeout:
-            _log(log_cb, "   WARNING: Could not load My Listing page")
-            return False
-
-        # Check for CAPTCHA
-        if _detect_captcha(page):
-            _log(log_cb, "   🤖 CAPTCHA detected on My Listing page!")
-            if not _wait_for_captcha_solved(page, log_cb, stop_event):
-                return False
-
-        # Wait for page to render
-        try:
-            page.wait_for_load_state("networkidle", timeout=10_000)
-        except PlaywrightTimeout:
-            pass
-
-        _random_delay(1, 2)
-
-        # Scroll to ensure elements load
-        for _ in range(4):
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            _random_delay(0.5, 1)
-
-        # 1. Try exact match first
-        product_row = page.locator(f"text='{title}'").first
-        
-        # 2. Try substring match (helps with emojis or truncations)
-        if not product_row.is_visible():
-            short_title = title[:25].strip()
-            if short_title:
-                product_row = page.get_by_text(short_title, exact=False).first
-
-        # 3. Fallback: try searching via ZeusX search box if it exists (only on first page attempt)
-        if not product_row.is_visible() and page_num == 1:
-            search_input = page.locator("input[placeholder*='earch']").first
-            if search_input.is_visible():
-                search_input.fill(title[:20])
-                page.keyboard.press("Enter")
-                _random_delay(2, 3)
-                product_row = page.get_by_text(title[:15], exact=False).first
-
-        if product_row and product_row.is_visible():
-            found_product = True
-            break
-            
-        _log(log_cb, f"   Not on page {page_num}, checking next page...")
-
-    if not found_product or not product_row.is_visible():
-        _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on any page")
+    try:
+        page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=30_000)
+    except PlaywrightTimeout:
+        _log(log_cb, "   WARNING: Could not load My Listing page")
         return False
 
-    try:
-        # Find the closest "..." menu button near this product
-        # 1. Attempt to find a robust container
-        parent = product_row.locator("xpath=ancestor::*[contains(@class, 'listing') or contains(@class, 'item') or contains(@class, 'row') or self::tr or self::div[.//button]]").first
+    # Check for CAPTCHA
+    if _detect_captcha(page):
+        _log(log_cb, "   🤖 CAPTCHA detected on My Listing page!")
+        if not _wait_for_captcha_solved(page, log_cb, stop_event):
+            return False
 
-        # Look for the three-dot menu button in the parent ("more-action-button" from user's HTML)
-        menu_btn = parent.locator("button[class*='more-action-button'], button, .fa-ellipsis-v, .fa-ellipsis-h").last
+    try:
+        page.wait_for_load_state("networkidle", timeout=10_000)
+    except PlaywrightTimeout:
+        pass
+
+    _random_delay(1, 2)
+
+    # 1. ALWAYS Search first using the text box provided by the user
+    search_input = page.locator("input.input-search-small_input-search__vaRoh, input[placeholder*='Search']").first
+    if search_input.is_visible():
+        search_input.fill(title[:30]) # safe substring
+        page.keyboard.press("Enter")
+        _log(log_cb, "   Searched product via My Listing search bar")
+        try:
+            page.wait_for_load_state("networkidle", timeout=5000)
+        except:
+            pass
+        _random_delay(2, 3)
+
+    # Scroll to ensure elements load
+    for _ in range(2):
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        _random_delay(0.5, 1)
+
+    # 2. Try to find the item
+    product_row = page.locator(f"text='{title}'").first
+    if not product_row.is_visible():
+        short_title = title[:25].strip()
+        if short_title:
+            product_row = page.get_by_text(short_title, exact=False).first
+
+    if not product_row.is_visible():
+        # Fallback: if we searched and there's a menu button, just assume it's our product
+        menu_btn = page.locator("button[class*='more-action-button']").first
         if menu_btn.is_visible():
             menu_btn.click()
-            _random_delay(0.5, 1)
+            _random_delay(1, 2)
+            product_row = menu_btn # mock to bypass check
         else:
-            # Fallback: Just look anywhere near the product for an ellipsis button
-            dots = page.locator("button[class*='more-action-button'], text='...', .fa-ellipsis-v, .fa-ellipsis-h").first
-            if dots.is_visible():
-                dots.click()
-                _random_delay(0.5, 1)
+            _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on any page")
+            return False
+
+    try:
+        if product_row != menu_btn: # if we didn't already click the fallback
+            # Find the closest "..." menu button near this product
+            parent = product_row.locator("xpath=ancestor::*[contains(@class, 'listing') or contains(@class, 'item') or contains(@class, 'row') or self::tr or self::div[.//button]]").first
+
+            menu_btn = parent.locator("button[class*='more-action-button'], button, .fa-ellipsis-v, .fa-ellipsis-h").last
+            if menu_btn.is_visible():
+                menu_btn.click()
+                _random_delay(1, 2)
+            else:
+                # Fallback: Just look anywhere near the product
+                dots = page.locator("button[class*='more-action-button'], text='...', .fa-ellipsis-v, .fa-ellipsis-h").first
+                if dots.is_visible():
+                    dots.click()
+                    _random_delay(1, 2)
 
     except Exception as e:
-        _log(log_cb, f"   WARNING: Could not find product menu: {e}")
+        _log(log_cb, f"   WARNING: Could not find product menu/click it: {e}")
         return False
 
     # Click "Cancel Offer" from the dropdown menu
@@ -1285,8 +1279,8 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     quantity = product.get("quantity", 1)
     if quantity and quantity > 1:
         try:
-            # Check "Multiple quantity?" checkbox
-            qty_checkbox = page.locator("text='Multiple quantity'").first
+            # Check "Multiple quantity?" checkbox by clicking its container
+            qty_checkbox = page.locator("div.checkbox_checkbox__O5kmi:has-text('Multiple quantity?')").first
             if qty_checkbox.is_visible():
                 qty_checkbox.click()
                 _random_delay(0.5, 1)
@@ -1385,12 +1379,13 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
 
     # --- Check Terms checkbox ---
     try:
-        terms_container = page.locator("div:has-text('I agree with Terms of Service')").last
+        # Click the exact terms container / label
+        terms_container = page.locator("div.checkbox_checkbox__O5kmi:has-text('I agree with')").last
         if terms_container.is_visible():
             terms_container.click()
             _random_delay(0.5, 1)
         else:
-            terms_checkbox = page.locator("text='I agree'").last
+            terms_checkbox = page.locator("text='I agree with'").last
             if terms_checkbox.is_visible():
                 terms_checkbox.click()
                 _random_delay(0.5, 1)
@@ -1450,7 +1445,8 @@ def relist_product(product: dict, headless: bool = False, log_cb=None) -> bool:
             deleted = delete_listing(page, product, log_cb)
 
             if not deleted:
-                _log(log_cb, "   Delete failed/skipped, will still try to create new listing")
+                _log(log_cb, "   ❌ Delete failed. Batal membuat listing baru untuk menghindari duplikat.")
+                return False
 
             _random_delay(2, 4)
 
@@ -1694,7 +1690,8 @@ def run_once(
                         # Step 1: Delete old listing
                         deleted = delete_listing(page, product, log_cb)
                         if not deleted:
-                            _log(log_cb, "   Delete failed/skipped, will try create anyway")
+                            _log(log_cb, "   ❌ Delete failed. Batal membuat listing baru untuk menghindari duplikat.")
+                            break
                         
                         _random_delay(2, 4)
 
