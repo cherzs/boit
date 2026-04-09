@@ -1053,16 +1053,16 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
                 _random_delay(1, 3)
 
             # Combine and Save to disk
-            all_products = existing_products + newly_scanned
-            save_products(all_products)
-            _log(log_cb, f"Done: added {len(newly_scanned)} new products. Total: {len(all_products)} products.")
+            products = existing_products + newly_scanned
+            save_products(products)
+            _log(log_cb, f"Done: added {len(newly_scanned)} new products. Total: {len(products)} products.")
 
             # Refresh session (only for my-listing scan)
             if not is_public_scan:
                 save_session(context)
                 _log(log_cb, "💾 Session refreshed")
 
-            return all_products
+            return products
 
         finally:
             browser.close()
@@ -1883,11 +1883,11 @@ def run_once(
                         if success:
                             # Update timestamp
                             product["last_relisted"] = datetime.now().isoformat()
-                            all_products = load_products()
-                            for p in all_products:
+                            products = load_products()
+                            for p in products:
                                 if p.get("url") == product.get("url"):
                                     p["last_relisted"] = product["last_relisted"]
-                            save_products(all_products)
+                            save_products(products)
                             _log(log_cb, "✅ Product re-listed successfully!")
                             break
 
