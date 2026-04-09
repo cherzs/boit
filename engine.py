@@ -1369,10 +1369,8 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not fill price: {e}")
 
-    # Multiple quantity checkbox + quantity value (DEFAULT 20)
-    quantity = product.get("quantity", 20)
-    if not quantity or quantity < 1:
-        quantity = 20  # Default ke 20
+    # Force quantity to 20 (as requested: "don't follow previous product data")
+    quantity = 20
         
     try:
         # Check "Multiple quantity?" checkbox by clicking its container
