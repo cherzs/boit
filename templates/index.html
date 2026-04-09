@@ -713,13 +713,13 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        
+
         .product-card-actions button:first-child {
             background: rgba(99, 102, 241, 0.15);
             color: var(--accent);
             border: 1px solid rgba(99, 102, 241, 0.3);
         }
-        
+
         .product-card-actions button:first-child:hover {
             background: var(--accent);
             color: white;
@@ -1265,26 +1265,38 @@
                 <!-- PRODUCT GRID -->
                 <div class="panel">
                     <!-- Toolbar: Controls + Pagination + Actions -->
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
+                    <div
+                        style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
                         <!-- Left: Title & Info -->
-                        <div style="display:flex; align-items:center; gap:1rem;">
+                        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
                             <div class="panel-title" style="margin:0;">My Products</div>
                             <span id="enabledInfo" style="font-size:0.75rem; color:var(--text-muted);"></span>
+                            <div style="position: relative;">
+                                <input type="text" id="searchInput" oninput="handleSearch(this.value)"
+                                    placeholder="Search by name..."
+                                    style="padding:0.4rem 0.8rem; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary); font-size:0.85rem; width:220px; outline:none;"
+                                    onfocus="this.style.borderColor='var(--accent)'"
+                                    onblur="this.style.borderColor='var(--border)'">
+                            </div>
                         </div>
-                        
+
                         <!-- Center: Pagination -->
                         <div class="pagination" id="pagination" style="display:none; margin:0; padding:0; border:none;">
                             <button class="pagination-btn" id="prevPage" onclick="changePage(-1)">Prev</button>
                             <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
                             <button class="pagination-btn" id="nextPage" onclick="changePage(1)">Next</button>
                         </div>
-                        
+
                         <!-- Right: Controls -->
                         <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <button class="btn btn-outline" onclick="toggleAllProducts(true)" style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Select All</button>
-                            <button class="btn btn-outline" onclick="toggleAllProducts(false)" style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Deselect</button>
-                            <button class="btn btn-success" id="startBtn" onclick="doStart()" style="padding:0.4rem 1rem; width:auto;">Start Bot</button>
-                            <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled style="padding:0.4rem 1rem; width:auto;">Stop Bot</button>
+                            <button class="btn btn-outline" onclick="toggleAllProducts(true)"
+                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Select All</button>
+                            <button class="btn btn-outline" onclick="toggleAllProducts(false)"
+                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Deselect</button>
+                            <button class="btn btn-success" id="startBtn" onclick="doStart()"
+                                style="padding:0.4rem 1rem; width:auto;">Start Bot</button>
+                            <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled
+                                style="padding:0.4rem 1rem; width:auto;">Stop Bot</button>
                         </div>
                     </div>
 
@@ -1414,7 +1426,7 @@
             // Enabled info
             document.getElementById('enabledInfo').textContent =
                 `${s.enabled_count || 0} of ${s.product_count || 0} enabled`;
-            
+
             // Update product count in case products were updated
             if (s.product_count !== allProducts.length) {
                 loadProducts();
@@ -1428,25 +1440,34 @@
         let allProducts = []; // Store all products
         let currentPage = 1;
         const ITEMS_PER_PAGE = 12; // 12 products per page
+        let searchQuery = "";
 
         async function loadProducts() {
             const products = await api('products');
             if (!products) return;
-            
+
             allProducts = products;
             currentPage = 1; // Reset to first page
+            renderProducts();
+        }
+
+        function handleSearch(query) {
+            searchQuery = query || "";
+            currentPage = 1;
             renderProducts();
         }
 
         function renderProducts() {
             const list = document.getElementById('productList');
             const pagination = document.getElementById('pagination');
-            
-            if (allProducts.length === 0) {
+
+            const filteredProducts = allProducts.filter(p => !searchQuery || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())));
+
+            if (filteredProducts.length === 0) {
                 list.innerHTML = `
                     <div class="empty-state" style="grid-column: 1 / -1;">
                         <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">[Empty]</div>
-                        <p>No products loaded. Scan your seller profile to get started.</p>
+                        <p>${allProducts.length === 0 ? 'No products loaded. Scan your seller profile to get started.' : 'No products match your search query.'}</p>
                     </div>`;
                 document.getElementById('productSummary').style.display = 'none';
                 pagination.style.display = 'none';
@@ -1454,12 +1475,12 @@
             }
 
             const enabledCount = allProducts.filter(p => p.enabled).length;
-            const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
-            
+            const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+
             // Get products for current page
             const start = (currentPage - 1) * ITEMS_PER_PAGE;
             const end = start + ITEMS_PER_PAGE;
-            const pageProducts = allProducts.slice(start, end);
+            const pageProducts = filteredProducts.slice(start, end);
 
             list.innerHTML = pageProducts.map((p, i) => {
                 const isEditing = editingProductUrl === p.url;
@@ -1501,10 +1522,10 @@
                 return `
                 <div class="product-card ${p.enabled ? '' : 'disabled'}" onclick="showProductDetail('${encodeURIComponent(p.url)}')">
                     <div class="product-card-header">
-                        ${firstImage 
-                            ? `<img src="${firstImage}" class="product-card-image" alt="" loading="lazy" onerror="this.parentElement.querySelector('.product-card-image-placeholder').style.display='flex'; this.style.display='none'; console.log('Image failed:', '${firstImage}');"><div class="product-card-image-placeholder" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:0;">[No Image]</div>`
-                            : `<div class="product-card-image-placeholder">[No Image]</div>`
-                        }
+                        ${firstImage
+                        ? `<img src="${firstImage}" class="product-card-image" alt="" loading="lazy" onerror="this.parentElement.querySelector('.product-card-image-placeholder').style.display='flex'; this.style.display='none'; console.log('Image failed:', '${firstImage}');"><div class="product-card-image-placeholder" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:0;">[No Image]</div>`
+                        : `<div class="product-card-image-placeholder">[No Image]</div>`
+                    }
                         <div class="product-card-checkbox" onclick="event.stopPropagation()">
                             <input type="checkbox" ${p.enabled ? 'checked' : ''}
                                    onchange="toggleProduct('${encodeURIComponent(p.url)}')"
@@ -1545,9 +1566,10 @@
         }
 
         function changePage(direction) {
-            const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
+            const filteredProducts = allProducts.filter(p => !searchQuery || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())));
+            const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
             const newPage = currentPage + direction;
-            
+
             if (newPage >= 1 && newPage <= totalPages) {
                 currentPage = newPage;
                 renderProducts();
@@ -1616,11 +1638,11 @@
         async function deleteProduct(encodedUrl, title) {
             event.stopPropagation();
             const url = decodeURIComponent(encodedUrl);
-            
+
             if (!confirm(`Delete product "${title}"?`)) {
                 return;
             }
-            
+
             const res = await api('product/delete', 'POST', { url });
             if (res) {
                 showToast('Product deleted!', 'success');
