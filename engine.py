@@ -1027,21 +1027,35 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
                 _log(log_cb, "WARNING: No products found on seller page")
                 return []
 
+            # Load existing products to avoid duplicates
+            existing_products = load_products()
+            existing_urls = {p.get("url") for p in existing_products if p.get("url")}
+            
+            _log(log_cb, f"Found {len(product_links)} products on page. Checking for new items...")
+
             # Step 2: Scrape each product detail
-            products = []
+            newly_scanned = []
             for i, link in enumerate(product_links):
+                url = link["url"]
+                
+                # Validation: Skip if already exists
+                if url in existing_urls:
+                    _log(log_cb, f"   [SKIP] {i+1}/{len(product_links)} Already exists: {url}")
+                    continue
+
                 _log(log_cb, f"Scraping product {i+1}/{len(product_links)}...")
-                detail = scrape_product_detail(page, link["url"], log_cb)
+                detail = scrape_product_detail(page, url, log_cb)
                 if detail and detail.get("title"):
                     # Mark as enabled for re-listing by default
                     detail["enabled"] = True
                     detail["last_relisted"] = None
-                    products.append(detail)
+                    newly_scanned.append(detail)
                 _random_delay(1, 3)
 
-            # Save to disk
-            save_products(products)
-            _log(log_cb, f"Done: scanned {len(products)} products, saved to products.json")
+            # Combine and Save to disk
+            all_products = existing_products + newly_scanned
+            save_products(all_products)
+            _log(log_cb, f"Done: added {len(newly_scanned)} new products. Total: {len(all_products)} products.")
 
             # Refresh session (only for my-listing scan)
             if not is_public_scan:
