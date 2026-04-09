@@ -255,7 +255,7 @@ with c4:
 # ═══════════════════════════════════════════════════════════════════════════
 # PRODUCT SCANNING
 # ═══════════════════════════════════════════════════════════════════════════
-st.markdown('<div class="sec">📦 Products</div>', unsafe_allow_html=True)
+st.markdown('<div class="sec">Products</div>', unsafe_allow_html=True)
 
 # Scan options
 st.markdown("**Scan dari public store link** - Menggunakan *Seller Profile URL* dari ⚙️ Settings. Tidak butuh login.")

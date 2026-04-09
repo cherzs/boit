@@ -521,50 +521,108 @@
         }
 
         /* ═══════════════════════════════════════════════════════════════
-           PRODUCT LIST
+           PRODUCT GRID (was: PRODUCT LIST)
            ═══════════════════════════════════════════════════════════════ */
-        .product-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.6rem;
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
         }
 
-        .product-item {
-            display: grid;
-            grid-template-columns: 40px 1fr 100px 130px 60px 40px;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.9rem 1.2rem;
-            background: rgba(255, 255, 255, 0.02);
+        .product-card {
+            background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
-            transition: background 0.15s, border-color 0.15s;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            position: relative;
         }
 
-        .product-item:hover {
-            background: rgba(255, 255, 255, 0.04);
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
             border-color: rgba(255, 255, 255, 0.1);
         }
 
-        .product-item.disabled {
-            opacity: 0.45;
+        .product-card.disabled {
+            opacity: 0.5;
         }
 
-        .product-item.editing {
-            background: rgba(99, 102, 241, 0.1);
+        .product-card.editing {
             border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
         }
 
-        .product-title {
+        .product-card-header {
+            position: relative;
+            height: 160px;
+            background: var(--bg-input);
+            overflow: hidden;
+        }
+
+        .product-card-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .product-card-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card-hover) 100%);
+        }
+
+        .product-card-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 2;
+        }
+
+        .product-card-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .product-card-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            z-index: 2;
+        }
+
+        .product-card-body {
+            padding: 1rem;
+        }
+
+        .product-card-title {
             font-weight: 600;
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             color: var(--text-primary);
+            margin-bottom: 0.5rem;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
+            min-height: 2.5rem;
         }
 
-        .product-title-input {
+        .product-card-title-input {
             width: 100%;
             padding: 0.5rem;
             background: var(--bg-input);
@@ -573,18 +631,28 @@
             color: var(--text-primary);
             font-family: 'Inter', sans-serif;
             font-size: 0.85rem;
+            margin-bottom: 0.5rem;
         }
 
-        .product-price {
+        .product-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            justify-content: space-between;
+            padding-top: 0.8rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .product-card-price {
             color: var(--green);
             font-weight: 700;
-            font-size: 0.95rem;
-            text-align: right;
+            font-size: 1.1rem;
         }
 
-        .product-price-input {
-            width: 100%;
-            padding: 0.5rem;
+        .product-card-price-input {
+            width: 100px;
+            padding: 0.4rem;
             background: var(--bg-input);
             border: 1px solid var(--border);
             border-radius: 6px;
@@ -592,74 +660,120 @@
             font-family: 'Inter', sans-serif;
             font-size: 0.85rem;
             font-weight: 700;
-            text-align: right;
         }
 
-        .product-meta {
+        .product-card-meta {
             font-size: 0.75rem;
             color: var(--text-muted);
-            text-align: right;
         }
 
-        .product-imgs {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
-        .product-header {
-            display: grid;
-            grid-template-columns: 40px 1fr 100px 130px 60px 40px;
-            gap: 1rem;
-            padding: 0 1.2rem 0.5rem;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        .product-actions {
+        .product-card-actions {
             display: flex;
             gap: 0.3rem;
-            justify-content: flex-end;
         }
 
-        .product-actions button {
-            width: 28px;
-            height: 28px;
+        .product-card-actions button {
+            width: 32px;
+            height: 32px;
             border: none;
             border-radius: 6px;
             background: rgba(255, 255, 255, 0.06);
             color: var(--text-secondary);
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             transition: all 0.2s;
         }
 
-        .product-actions button:hover {
+        .product-card-actions button:hover {
             background: var(--accent);
             color: white;
         }
 
-        .product-actions button.save-btn:hover {
+        .product-card-actions button.save-btn:hover {
             background: var(--green);
         }
 
-        .product-actions button.cancel-btn:hover {
+        .product-card-actions button.cancel-btn:hover {
             background: var(--red);
         }
 
+        .product-card-actions button.delete-btn:hover {
+            background: var(--red) !important;
+            color: white !important;
+        }
+
+        /* Button styling overrides for compact look */
+        .product-card-actions button {
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            min-width: 55px;
+            height: 28px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .product-card-actions button:first-child {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        
+        .product-card-actions button:first-child:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .pagination-info {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0 1rem;
+        }
+
         @media (max-width: 768px) {
-
-            .product-item,
-            .product-header {
-                grid-template-columns: 36px 1fr 80px;
-            }
-
-            .product-meta,
-            .product-imgs {
-                display: none;
+            .product-grid {
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
             }
         }
 
@@ -1055,25 +1169,25 @@
                 <div class="sidebar-title">🔐 Session</div>
 
                 <div id="sessionStatus" class="session-status inactive">
-                    ⚠️ No session — login first
+                    No session - login first
                 </div>
 
                 <button class="btn btn-primary" id="importBtn" onclick="importFromChrome()">
-                    📥 Import Session dari Chrome
+                    Import Session dari Chrome
                 </button>
 
                 <button class="btn btn-outline" id="manualLoginBtn" onclick="openManualLogin()">
-                    🌐 Login Manual (Browser Baru)
+                    Login Manual (Browser Baru)
                 </button>
 
                 <button class="btn btn-danger" id="logoutBtn" onclick="doLogout()" style="display:none;">
-                    🗑️ Logout / Clear Session
+                    Logout / Clear Session
                 </button>
 
                 <div class="info-box" style="margin-top:1rem;">
-                    <strong>💡 Cara Login (Rekomendasi):</strong><br>
+                    <strong>Cara Login (Rekomendasi):</strong><br>
                     1. Buka Chrome/Edge → Login ke ZeusX<br>
-                    2. Klik "📥 Import Session dari Chrome"<br>
+                    2. Klik "Import Session dari Chrome"<br>
                     3. Session otomatis tersimpan<br>
                     4. Ready to start bot!
                 </div>
@@ -1081,12 +1195,9 @@
 
             <!-- Settings Section -->
             <div class="sidebar-section">
-                <div class="sidebar-title">⚙️ Settings</div>
+                <div class="sidebar-title">Settings</div>
 
-                <div class="form-group">
-                    <label>Seller Profile URL</label>
-                    <input type="text" id="sellerUrl" placeholder="https://www.zeusx.com/seller/username-123456">
-                </div>
+                <input type="hidden" id="sellerUrl" value="https://zeusx.com/seller/gstore-657837">
 
                 <div class="form-group">
                     <label>Interval (minutes)</label>
@@ -1112,15 +1223,15 @@
             <div class="container">
                 <!-- HEADER -->
                 <div class="header">
-                    <h1>🚀 ZeusX Auto Re-Lister</h1>
-                    <p>Keep your products at the top — automatically re-list on schedule</p>
+                    <h1>ZeusX Auto Re-Lister</h1>
+                    <p>Keep your products at the top - automatically re-list on schedule</p>
                 </div>
 
                 <!-- STATUS CARDS -->
                 <div class="cards">
                     <div class="card">
                         <div class="label">Bot Status</div>
-                        <div class="value" id="statusVal" style="color:var(--red)">● STOPPED</div>
+                        <div class="value" id="statusVal" style="color:var(--red)">STOPPED</div>
                     </div>
                     <div class="card">
                         <div class="label">Products</div>
@@ -1132,49 +1243,54 @@
                     </div>
                     <div class="card">
                         <div class="label">Last Success</div>
-                        <div class="value" id="lastSuccessVal" style="color:var(--amber);font-size:0.9rem">—</div>
+                        <div class="value" id="lastSuccessVal" style="color:var(--amber);font-size:0.9rem">-</div>
                     </div>
                 </div>
 
                 <!-- PRODUCT SCANNING -->
                 <div class="panel">
-                    <div class="panel-title">📦 Scan Products</div>
+                    <div class="panel-title">Scan Products</div>
 
                     <p style="margin-bottom:1rem; color:var(--text-secondary); font-size:0.9rem;">
-                        <strong>Scan dari public store link</strong> - Menggunakan "Seller Profile URL" dari ⚙️
-                        Settings. Tidak butuh login.
+                        Scan dari public store link. Tidak butuh login.
                     </p>
                     <button class="btn btn-primary" id="scanPublicBtn" onclick="scanPublicStore()"
                         style="margin-top:0.5rem;">
-                        🔍 Scan Store
+                        Scan Store
                     </button>
 
                     <div id="scanMessage" style="margin-top:1rem;"></div>
                 </div>
 
-                <!-- PRODUCT LIST -->
+                <!-- PRODUCT GRID -->
                 <div class="panel">
-                    <div class="panel-title">
-                        My Products
-                        <span id="enabledInfo"
-                            style="font-size:0.75rem; color:var(--text-muted); margin-left:auto; font-weight:400"></span>
+                    <!-- Toolbar: Controls + Pagination + Actions -->
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
+                        <!-- Left: Title & Info -->
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <div class="panel-title" style="margin:0;">My Products</div>
+                            <span id="enabledInfo" style="font-size:0.75rem; color:var(--text-muted);"></span>
+                        </div>
+                        
+                        <!-- Center: Pagination -->
+                        <div class="pagination" id="pagination" style="display:none; margin:0; padding:0; border:none;">
+                            <button class="pagination-btn" id="prevPage" onclick="changePage(-1)">Prev</button>
+                            <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
+                            <button class="pagination-btn" id="nextPage" onclick="changePage(1)">Next</button>
+                        </div>
+                        
+                        <!-- Right: Controls -->
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <button class="btn btn-outline" onclick="toggleAllProducts(true)" style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Select All</button>
+                            <button class="btn btn-outline" onclick="toggleAllProducts(false)" style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Deselect</button>
+                            <button class="btn btn-success" id="startBtn" onclick="doStart()" style="padding:0.4rem 1rem; width:auto;">Start Bot</button>
+                            <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled style="padding:0.4rem 1rem; width:auto;">Stop Bot</button>
+                        </div>
                     </div>
 
-                    <div class="product-header">
-                        <span class="product-check" style="text-align: center;">
-                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllProducts(this.checked)"
-                                title="Select/Deselect All">
-                        </span>
-                        <span>Product Name</span>
-                        <span style="text-align:right">Price</span>
-                        <span style="text-align:right">Last Re-listed</span>
-                        <span style="text-align:center">Images</span>
-                        <span></span>
-                    </div>
-
-                    <div class="product-list" id="productList">
-                        <div class="empty-state">
-                            <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">📭</div>
+                    <div class="product-grid" id="productList">
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">[Empty]</div>
                             <p>No products loaded. Scan your seller profile to get started.</p>
                         </div>
                     </div>
@@ -1182,34 +1298,16 @@
                     <div id="productSummary" class="product-summary" style="display:none;"></div>
                 </div>
 
-                <!-- CONTROLS -->
-                <div class="panel">
-                    <div class="panel-title">🎮 Controls</div>
-
-                    <div id="controlHint" style="margin-bottom:1rem; font-size:0.85rem; color:var(--text-muted);">
-                        ℹ️ Bot will open a browser window to re-list products
-                    </div>
-
-                    <div class="btn-group">
-                        <button class="btn btn-success" id="startBtn" onclick="doStart()">
-                            ▶️ Start Bot
-                        </button>
-                        <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled>
-                            ⏹️ Stop Bot
-                        </button>
-                    </div>
-                </div>
-
                 <!-- LOG CONSOLE -->
                 <div class="panel">
-                    <div class="panel-title">📋 Activity Log</div>
+                    <div class="panel-title">Activity Log</div>
                     <div class="log-console" id="logConsole">
                         <div class="log-line" style="color:var(--text-muted)">No activity yet. Scan products or start
                             the bot.</div>
                     </div>
                     <div class="log-actions">
                         <button class="btn btn-outline" onclick="clearLogs()"
-                            style="font-size:0.78rem; padding:0.5rem 1rem; width:auto;">🧹 Clear Logs</button>
+                            style="font-size:0.78rem; padding:0.5rem 1rem; width:auto;">Clear Logs</button>
                     </div>
                 </div>
             </div>
@@ -1236,7 +1334,7 @@
 
         socket.on('relist_complete', () => {
             showToast('Re-listing run complete!', 'success');
-            alert("✅ Re-listing complete! All enabled products have been processed.");
+            alert("Re-listing complete! All enabled products have been processed.");
         });
 
         // ═══════════════════════════════════════════════════════════
@@ -1273,11 +1371,11 @@
             // Bot status
             const statusEl = document.getElementById('statusVal');
             if (s.running) {
-                statusEl.textContent = '● RUNNING';
+                statusEl.textContent = 'RUNNING';
                 statusEl.style.color = 'var(--green)';
                 statusEl.classList.add('pulse');
             } else {
-                statusEl.textContent = '● STOPPED';
+                statusEl.textContent = 'STOPPED';
                 statusEl.style.color = 'var(--red)';
                 statusEl.classList.remove('pulse');
             }
@@ -1286,11 +1384,11 @@
             const sessionStatusEl = document.getElementById('sessionStatus');
             if (s.has_session) {
                 sessionStatusEl.className = 'session-status active';
-                sessionStatusEl.innerHTML = '✅ Session active';
+                sessionStatusEl.innerHTML = 'Session active';
                 document.getElementById('logoutBtn').style.display = 'block';
             } else {
                 sessionStatusEl.className = 'session-status inactive';
-                sessionStatusEl.innerHTML = '⚠️ No session — login first';
+                sessionStatusEl.innerHTML = 'No session - login first';
                 document.getElementById('logoutBtn').style.display = 'none';
             }
 
@@ -1307,9 +1405,7 @@
             // Settings
             if (s.settings) {
                 document.getElementById('headless').checked = s.settings.headless || false;
-                if (s.settings.seller_url) {
-                    document.getElementById('sellerUrl').value = s.settings.seller_url;
-                }
+                // seller_url selalu fixed, tidak perlu diupdate dari settings
                 if (s.settings.interval_minutes) {
                     document.getElementById('intervalMinutes').value = s.settings.interval_minutes;
                 }
@@ -1318,83 +1414,146 @@
             // Enabled info
             document.getElementById('enabledInfo').textContent =
                 `${s.enabled_count || 0} of ${s.product_count || 0} enabled`;
+            
+            // Update product count in case products were updated
+            if (s.product_count !== allProducts.length) {
+                loadProducts();
+            }
         }
 
         // ═══════════════════════════════════════════════════════════
-        // PRODUCT LIST
+        // PRODUCT GRID + PAGINATION
         // ═══════════════════════════════════════════════════════════
         let editingProductUrl = null;
+        let allProducts = []; // Store all products
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 12; // 12 products per page
 
         async function loadProducts() {
             const products = await api('products');
             if (!products) return;
+            
+            allProducts = products;
+            currentPage = 1; // Reset to first page
+            renderProducts();
+        }
 
+        function renderProducts() {
             const list = document.getElementById('productList');
-
-            if (products.length === 0) {
+            const pagination = document.getElementById('pagination');
+            
+            if (allProducts.length === 0) {
                 list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">📭</div>
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">[Empty]</div>
                         <p>No products loaded. Scan your seller profile to get started.</p>
                     </div>`;
                 document.getElementById('productSummary').style.display = 'none';
+                pagination.style.display = 'none';
                 return;
             }
 
-            const enabledCount = products.filter(p => p.enabled).length;
+            const enabledCount = allProducts.filter(p => p.enabled).length;
+            const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
+            
+            // Get products for current page
+            const start = (currentPage - 1) * ITEMS_PER_PAGE;
+            const end = start + ITEMS_PER_PAGE;
+            const pageProducts = allProducts.slice(start, end);
 
-            list.innerHTML = products.map((p, i) => {
+            list.innerHTML = pageProducts.map((p, i) => {
                 const isEditing = editingProductUrl === p.url;
+                const globalIndex = start + i;
+                // Convert local path to web URL (extract filename only)
+                let firstImage = null;
+                if (p.local_images && p.local_images.length > 0) {
+                    const fullPath = p.local_images[0];
+                    const filename = fullPath.split('/').pop().split('\\').pop(); // Handle both / and \
+                    firstImage = '/images/' + encodeURIComponent(filename);
+                } else {
+                    console.log('Product:', p.title ? p.title.substring(0, 30) : 'No title', '- No local_images');
+                }
 
                 if (isEditing) {
                     return `
-                    <div class="product-item editing" onclick="event.stopPropagation()">
-                        <div class="product-check">
-                            <input type="checkbox" ${p.enabled ? 'checked' : ''} disabled
-                                   title="Enable/disable re-listing">
+                    <div class="product-card editing" onclick="event.stopPropagation()">
+                        <div class="product-card-header">
+                            <div class="product-card-image-placeholder">[No Image]</div>
+                            <div class="product-card-checkbox">
+                                <input type="checkbox" ${p.enabled ? 'checked' : ''} disabled>
+                            </div>
                         </div>
-                        <div>
-                            <input type="text" class="product-title-input" id="editTitle-${i}" 
+                        <div class="product-card-body">
+                            <input type="text" class="product-card-title-input" id="editTitle-${globalIndex}" 
                                 value="${escapeHtml(p.title)}" placeholder="Product Name">
-                        </div>
-                        <div>
-                            <input type="text" class="product-price-input" id="editPrice-${i}" 
-                                value="${escapeHtml(p.price)}" placeholder="Price">
-                        </div>
-                        <div class="product-meta">Editing...</div>
-                        <div class="product-imgs"></div>
-                        <div class="product-actions">
-                            <button class="save-btn" onclick="saveProductEdit('${encodeURIComponent(p.url)}', ${i})" title="Save">✅</button>
-                            <button class="cancel-btn" onclick="cancelProductEdit()" title="Cancel">❌</button>
+                            <div class="product-card-footer">
+                                <input type="text" class="product-card-price-input" id="editPrice-${globalIndex}" 
+                                    value="${escapeHtml(p.price)}" placeholder="Price">
+                                <div class="product-card-actions">
+                                    <button class="save-btn" onclick="saveProductEdit('${encodeURIComponent(p.url)}', ${globalIndex})" title="Save">Save</button>
+                                    <button class="cancel-btn" onclick="cancelProductEdit()" title="Cancel">X</button>
+                                </div>
+                            </div>
                         </div>
                     </div>`;
                 }
 
                 return `
-                <div class="product-item ${p.enabled ? '' : 'disabled'}" style="cursor:pointer" onclick="showProductDetail('${encodeURIComponent(p.url)}')">
-                    <div class="product-check" onclick="event.stopPropagation()">
-                        <input type="checkbox" ${p.enabled ? 'checked' : ''}
-                               onchange="toggleProduct('${encodeURIComponent(p.url)}')"
-                               title="Enable/disable re-listing">
+                <div class="product-card ${p.enabled ? '' : 'disabled'}" onclick="showProductDetail('${encodeURIComponent(p.url)}')">
+                    <div class="product-card-header">
+                        ${firstImage 
+                            ? `<img src="${firstImage}" class="product-card-image" alt="" loading="lazy" onerror="this.parentElement.querySelector('.product-card-image-placeholder').style.display='flex'; this.style.display='none'; console.log('Image failed:', '${firstImage}');"><div class="product-card-image-placeholder" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:0;">[No Image]</div>`
+                            : `<div class="product-card-image-placeholder">[No Image]</div>`
+                        }
+                        <div class="product-card-checkbox" onclick="event.stopPropagation()">
+                            <input type="checkbox" ${p.enabled ? 'checked' : ''}
+                                   onchange="toggleProduct('${encodeURIComponent(p.url)}')"
+                                   title="Enable/disable re-listing">
+                        </div>
+                        <div class="product-card-badge">${p.image_count || 0} images</div>
                     </div>
-                    <div class="product-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</div>
-                    <div class="product-price">$${escapeHtml(p.price)}</div>
-                    <div class="product-meta">${p.last_relisted ? p.last_relisted.substring(0, 16) : '🔄 Never'}</div>
-                    <div class="product-imgs">🖼️ ${p.image_count}</div>
-                    <div class="product-actions" onclick="event.stopPropagation()">
-                        <button onclick="editProduct('${encodeURIComponent(p.url)}')" title="Edit Title/Price">✏️</button>
+                    <div class="product-card-body">
+                        <div class="product-card-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</div>
+                        <div class="product-card-footer">
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                <div class="product-card-price">$${escapeHtml(p.price || '0')}</div>
+                                <div class="product-card-meta">${p.last_relisted ? p.last_relisted.substring(0, 16) : 'Never'}</div>
+                            </div>
+                            <div class="product-card-actions" onclick="event.stopPropagation()">
+                                <button onclick="editProduct('${encodeURIComponent(p.url)}')" title="Edit">Edit</button>
+                                <button class="delete-btn" onclick="deleteProduct('${encodeURIComponent(p.url)}', '${escapeHtml(p.title)}')" title="Delete">Delete</button>
+                            </div>
+                        </div>
                     </div>
                 </div>`;
             }).join('');
 
+            // Update pagination
+            if (totalPages > 1) {
+                pagination.style.display = 'flex';
+                document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+                document.getElementById('prevPage').disabled = currentPage === 1;
+                document.getElementById('nextPage').disabled = currentPage === totalPages;
+            } else {
+                pagination.style.display = 'none';
+            }
+
             // Update summary
             const summaryEl = document.getElementById('productSummary');
             summaryEl.style.display = 'block';
-            summaryEl.innerHTML = `<strong>${enabledCount}</strong> of ${products.length} product(s) enabled for re-listing`;
+            summaryEl.innerHTML = `<strong>${enabledCount}</strong> of ${allProducts.length} product(s) enabled for re-listing`;
+        }
 
-            // Sync select-all checkbox
-            const sa = document.getElementById('selectAllCheckbox');
-            if (sa) sa.checked = (enabledCount === products.length && products.length > 0);
+        function changePage(direction) {
+            const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
+            const newPage = currentPage + direction;
+            
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                renderProducts();
+                // Scroll to top of product panel to show controls
+                document.querySelector('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
 
         function escapeHtml(str) {
@@ -1413,7 +1572,12 @@
 
         async function toggleAllProducts(enable) {
             await api('product/toggle_all', 'POST', { enable });
-            loadProducts();
+            // Reload all products and stay on current page
+            const products = await api('products');
+            if (products) {
+                allProducts = products;
+                renderProducts();
+            }
             const s = await api('status');
             if (s) updateStatus(s);
         }
@@ -1444,6 +1608,26 @@
         function cancelProductEdit() {
             editingProductUrl = null;
             loadProducts();
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // DELETE PRODUCT
+        // ═══════════════════════════════════════════════════════════
+        async function deleteProduct(encodedUrl, title) {
+            event.stopPropagation();
+            const url = decodeURIComponent(encodedUrl);
+            
+            if (!confirm(`Delete product "${title}"?`)) {
+                return;
+            }
+            
+            const res = await api('product/delete', 'POST', { url });
+            if (res) {
+                showToast('Product deleted!', 'success');
+                // Remove from local array and re-render
+                allProducts = allProducts.filter(p => p.url !== url);
+                renderProducts();
+            }
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -1564,19 +1748,11 @@
         // SCAN ACTIONS
         // ═══════════════════════════════════════════════════════════
         async function scanPublicStore() {
-            const url = document.getElementById('sellerUrl').value.trim();
-
-            if (!url) {
-                showToast('Masukkan Seller Profile URL di bagian ⚙️ Settings terlebih dahulu!', 'error');
-                return;
-            }
-
-            await saveSettings(); // Pastikan settings tersimpan sebelum scan
-
             document.getElementById('scanPublicBtn').disabled = true;
-            showToast(`Scanning: ${url}...`, 'info');
+            showToast('Scanning store...', 'info');
 
-            const res = await api('scan', 'POST', { store_url: url });
+            // Tidak perlu kirim URL, server akan pakai default
+            const res = await api('scan', 'POST', {});
             if (res) {
                 showToast('Scan complete!', 'success');
                 loadProducts();
@@ -1608,7 +1784,7 @@
         async function saveSettings() {
             const data = {
                 headless: document.getElementById('headless').checked,
-                seller_url: document.getElementById('sellerUrl').value,
+                seller_url: "https://zeusx.com/seller/gstore-657837", // Fixed URL
                 interval_minutes: parseInt(document.getElementById('intervalMinutes').value) || 10,
             };
             const res = await api('settings', 'POST', data);

@@ -14,7 +14,7 @@ API:
 """
 
 import threading
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 from datetime import datetime
 
@@ -88,7 +88,6 @@ def api_status():
 @app.route("/api/products")
 def api_products():
     products = engine.load_products()
-    # Don't send full image paths to frontend
     safe = []
     for p in products:
         # Only count actual product images (cdn-offer-photos), not avatars/tracking
@@ -101,6 +100,7 @@ def api_products():
             "enabled": p.get("enabled", True),
             "last_relisted": p.get("last_relisted"),
             "image_count": len(offer_images),
+            "local_images": p.get("local_images", []),  # Include local image paths
         })
     return jsonify(safe)
 
@@ -157,10 +157,13 @@ def api_scan():
 
     cfg = engine.load_config()
     data = request.json or {}
-    store_url = data.get("store_url", "").strip()
     
+    # Gunakan store_url dari request, atau dari config, atau default
+    store_url = data.get("store_url", "").strip()
     if not store_url:
-        return jsonify({"error": "Store URL is required"}), 400
+        store_url = cfg.get("seller_url", "").strip()
+    if not store_url:
+        store_url = "https://zeusx.com/seller/gstore-657837"  # Default URL
 
     def do_scan():
         engine.scan_all_products(
@@ -287,6 +290,22 @@ def api_update_product():
     return jsonify({"error": "Product not found"}), 404
 
 
+@app.route("/api/product/delete", methods=["POST"])
+def api_delete_product():
+    data = request.json or {}
+    url = data.get("url", "")
+    products = engine.load_products()
+    
+    # Filter out the product with matching URL
+    new_products = [p for p in products if p.get("url") != url]
+    
+    if len(new_products) == len(products):
+        return jsonify({"error": "Product not found"}), 404
+    
+    engine.save_products(new_products)
+    return jsonify({"ok": True, "message": "Product deleted"})
+
+
 @app.route("/api/import_chrome", methods=["POST"])
 def api_import_chrome():
     if bot_state["running"]:
@@ -320,6 +339,15 @@ def api_logout():
 def api_clear_logs():
     bot_state["logs"] = []
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Static files: Serve images
+# ---------------------------------------------------------------------------
+@app.route("/images/<path:filename>")
+def serve_image(filename):
+    """Serve product images from the images folder."""
+    return send_from_directory(engine.IMAGES_DIR, filename)
 
 
 # ---------------------------------------------------------------------------

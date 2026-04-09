@@ -1223,9 +1223,36 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
         remove_btn.wait_for(state="visible", timeout=5000)
         _log(log_cb, "   Clicking Remove Listing...")
         remove_btn.click()
-        _random_delay(2, 3)
-        _log(log_cb, "   ✅ Listing deleted")
-        return True
+        
+        # Tunggu sampai benar-benar terhapus (dialog hilang atau redirect)
+        _log(log_cb, "   Waiting for deletion to complete...")
+        max_wait = 10  # maksimal 10 detik
+        for i in range(max_wait):
+            page.wait_for_timeout(1000)
+            
+            # Cek apakah dialog sudah hilang
+            dialog_gone = not remove_btn.is_visible()
+            
+            # Cek apakah sudah kembali ke my-listing
+            on_my_listing = "/my-listing" in page.url
+            
+            # Cek apakah masih ada tombol Cancel Offer (dropdown sudah tutup)
+            cancel_offer_gone = not page.locator("text='Cancel Offer'").first.is_visible()
+            
+            if dialog_gone or on_my_listing:
+                _log(log_cb, "   ✅ Listing deleted successfully")
+                _random_delay(1, 2)
+                return True
+                
+            # Cek error
+            error_msg = page.locator("[class*='error'], .alert").first
+            if error_msg.is_visible():
+                _log(log_cb, f"   ❌ Error during deletion")
+                return False
+        
+        _log(log_cb, "   ⚠️ Timeout waiting for deletion confirmation")
+        return False
+        
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not confirm removal: {e}")
         return False
@@ -1355,12 +1382,27 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
             _random_delay(0.8, 1.5)
 
             # Fill quantity input (appears after checking the box)
-            # Cari input placeholder "Eg: 10" atau input type number
-            qty_input = page.locator("input[placeholder*='Eg:']").first
+            # Cari input type number yang muncul setelah checkbox (biasanya di bawahnya)
+            # HINDARI input dengan placeholder yang mengandung "Eg:" karena itu title!
+            qty_input = page.locator("input[type='number']:not([placeholder*='Eg:'])").first
+            
+            # Atau cari input number yang dekat dengan checkbox
             if not qty_input.is_visible():
-                qty_input = page.locator("input[type='number']").last
+                qty_input = qty_checkbox.locator("xpath=../following-sibling::*//input[@type='number']").first
                 
-            if qty_input.is_visible():
+            if not qty_input.is_visible():
+                # Fallback: cari input number di halaman tapi bukan yang placeholder-nya mengandung "Eg:"
+                all_number_inputs = page.locator("input[type='number']").all()
+                for inp in all_number_inputs:
+                    try:
+                        placeholder = inp.get_attribute("placeholder") or ""
+                        if "Eg:" not in placeholder and inp.is_visible():
+                            qty_input = inp
+                            break
+                    except:
+                        continue
+                
+            if qty_input and qty_input.is_visible():
                 qty_input.fill("")
                 qty_input.type(str(quantity), delay=_typing_delay())
                 _log(log_cb, f"   Quantity: {quantity}")
@@ -1437,16 +1479,24 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
 
     # --- Step 4: Upload Images ---
     local_images = product.get("local_images", [])
+    _log(log_cb, f"   Found {len(local_images)} image(s) in product data")
     valid_images = [p for p in local_images if os.path.isfile(p)]
+    _log(log_cb, f"   Valid images on disk: {len(valid_images)}")
+    
     if valid_images:
         try:
             file_input = page.locator("input[type='file']").first
             if file_input:
+                _log(log_cb, f"   Uploading {len(valid_images)} image(s)...")
                 file_input.set_input_files(valid_images)
-                _log(log_cb, f"   Uploaded {len(valid_images)} image(s)")
+                _log(log_cb, f"   ✅ Uploaded {len(valid_images)} image(s)")
                 _random_delay(3, 5)  # Wait for upload processing
+            else:
+                _log(log_cb, "   WARNING: Could not find file input for images")
         except Exception as e:
             _log(log_cb, f"   WARNING: Image upload error: {e}")
+    else:
+        _log(log_cb, "   No valid images to upload")
 
     _random_delay(1, 2)
 
@@ -1545,9 +1595,11 @@ def relist_product(product: dict, headless: bool = False, log_cb=None) -> bool:
                 _log(log_cb, "   ❌ Delete failed. Batal membuat listing baru untuk menghindari duplikat.")
                 return False
 
-            _random_delay(2, 4)
+            _log(log_cb, "   ✅ Delete successful! Waiting before creating new listing...")
+            _random_delay(3, 5)  # Tunggu lebih lama setelah delete
 
             # Step 2: Create new listing with same data
+            _log(log_cb, "   Creating new listing...")
             success = create_listing(page, product, log_cb)
 
             # Refresh session
@@ -1790,7 +1842,8 @@ def run_once(
                             _log(log_cb, "   ❌ Delete failed. Batal membuat listing baru untuk menghindari duplikat.")
                             break
                         
-                        _random_delay(2, 4)
+                        _log(log_cb, "   ✅ Delete successful! Preparing to create new listing...")
+                        _random_delay(3, 5)  # Tunggu lebih lama setelah delete
 
                         # Step 2: Create new listing
                         success = create_listing(page, product, log_cb)
