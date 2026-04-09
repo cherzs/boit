@@ -1104,23 +1104,24 @@
 <body>
     <div class="toast-container" id="toasts"></div>
 
-    <!-- PRODUCT DETAIL MODAL -->
+        <!-- PRODUCT DETAIL MODAL -->
     <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
         <div class="modal" onclick="event.stopPropagation()">
             <button class="modal-close"
                 onclick="document.getElementById('modalOverlay').classList.remove('active')">&times;</button>
-            <h2 id="modalTitle">-</h2>
+            <input type="hidden" id="modalProductUrl">
+            <div class="form-group" style="margin-bottom: 1.2rem; margin-top: 1rem;">
+                <label>Product Title</label>
+                <input type="text" id="modalTitleInput" style="font-weight:700; font-size:1.05rem;" autocomplete="off">
+            </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin-bottom:1rem">
-                <div class="modal-field">
-                    <div class="label">Price</div>
-                    <div class="value price" id="modalPrice">-</div>
+                <div class="modal-field form-group" style="margin-bottom: 0;">
+                    <label>Price ($)</label>
+                    <input type="number" step="0.01" id="modalPriceInput" style="color:var(--green); font-weight:700; font-size:1.1rem; width:100%;" autocomplete="off">
                 </div>
-                <!-- Empty div for alignment if wanted, or we can just list them -->
-                <div class="modal-field"></div>
-
                 <div class="modal-field">
                     <div class="label">Item Type</div>
-                    <div class="value" id="modalCategory">-</div>
+                    <div class="value" id="modalCategory" style="margin-top:0.4rem">-</div>
                 </div>
                 <div class="modal-field">
                     <div class="label">Game</div>
@@ -1157,7 +1158,11 @@
                 <div class="label">Scraped At</div>
                 <div class="value" id="modalScraped">-</div>
             </div>
-            <a class="modal-link" id="modalLink" href="#" target="_blank">Open on ZeusX &rarr;</a>
+                        <a class="modal-link" id="modalLink" href="#" target="_blank">Open on ZeusX &rarr;</a>
+            <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button class="btn btn-outline" style="width:auto; margin:0;" onclick="document.getElementById('modalOverlay').classList.remove('active')">Close</button>
+                <button class="btn btn-success" style="width:auto; margin:0;" onclick="saveProductFromModal()">Save Changes</button>
+            </div>
         </div>
     </div>
 
@@ -1483,7 +1488,6 @@
             const pageProducts = filteredProducts.slice(start, end);
 
             list.innerHTML = pageProducts.map((p, i) => {
-                const isEditing = editingProductUrl === p.url;
                 const globalIndex = start + i;
                 // Convert local path to web URL (extract filename only)
                 let firstImage = null;
@@ -1493,30 +1497,6 @@
                     firstImage = '/images/' + encodeURIComponent(filename);
                 } else {
                     console.log('Product:', p.title ? p.title.substring(0, 30) : 'No title', '- No local_images');
-                }
-
-                if (isEditing) {
-                    return `
-                    <div class="product-card editing" onclick="event.stopPropagation()">
-                        <div class="product-card-header">
-                            <div class="product-card-image-placeholder">[No Image]</div>
-                            <div class="product-card-checkbox">
-                                <input type="checkbox" ${p.enabled ? 'checked' : ''} disabled>
-                            </div>
-                        </div>
-                        <div class="product-card-body">
-                            <input type="text" class="product-card-title-input" id="editTitle-${globalIndex}" 
-                                value="${escapeHtml(p.title)}" placeholder="Product Name">
-                            <div class="product-card-footer">
-                                <input type="text" class="product-card-price-input" id="editPrice-${globalIndex}" 
-                                    value="${escapeHtml(p.price)}" placeholder="Price">
-                                <div class="product-card-actions">
-                                    <button class="save-btn" onclick="saveProductEdit('${encodeURIComponent(p.url)}', ${globalIndex})" title="Save">Save</button>
-                                    <button class="cancel-btn" onclick="cancelProductEdit()" title="Cancel">X</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
                 }
 
                 return `
@@ -1541,7 +1521,6 @@
                                 <div class="product-card-meta">${p.last_relisted ? p.last_relisted.substring(0, 16) : 'Never'}</div>
                             </div>
                             <div class="product-card-actions" onclick="event.stopPropagation()">
-                                <button onclick="editProduct('${encodeURIComponent(p.url)}')" title="Edit">Edit</button>
                                 <button class="delete-btn" onclick="deleteProduct('${encodeURIComponent(p.url)}', '${escapeHtml(p.title)}')" title="Delete">Delete</button>
                             </div>
                         </div>
@@ -1604,31 +1583,21 @@
             if (s) updateStatus(s);
         }
 
-        function editProduct(encodedUrl) {
-            event.stopPropagation();
-            editingProductUrl = decodeURIComponent(encodedUrl);
-            loadProducts();
-        }
+                async function saveProductFromModal() {
+            const url = document.getElementById('modalProductUrl').value;
+            const newTitle = document.getElementById('modalTitleInput').value;
+            const newPrice = document.getElementById('modalPriceInput').value;
 
-        async function saveProductEdit(encodedUrl, index) {
-            const url = decodeURIComponent(encodedUrl);
-            const newTitle = document.getElementById(`editTitle-${index}`).value;
-            const newPrice = document.getElementById(`editPrice-${index}`).value;
+            if (!url) return;
 
-            // Update product via API (need to add this endpoint in server.py)
             await api('product/update', 'POST', {
                 url,
                 title: newTitle,
                 price: parseFloat(newPrice) || 0
             });
 
-            editingProductUrl = null;
-            loadProducts();
             showToast('Product updated!', 'success');
-        }
-
-        function cancelProductEdit() {
-            editingProductUrl = null;
+            document.getElementById('modalOverlay').classList.remove('active');
             loadProducts();
         }
 
@@ -1655,13 +1624,14 @@
         // ═══════════════════════════════════════════════════════════
         // PRODUCT DETAIL MODAL
         // ═══════════════════════════════════════════════════════════
-        async function showProductDetail(encodedUrl) {
+                async function showProductDetail(encodedUrl) {
             const url = decodeURIComponent(encodedUrl);
             const p = await api(`product/detail?url=${encodeURIComponent(url)}`);
             if (!p) return;
 
-            document.getElementById('modalTitle').textContent = p.title || 'Untitled';
-            document.getElementById('modalPrice').textContent = `$${p.price || '-'}`;
+            document.getElementById('modalProductUrl').value = p.url || '';
+            document.getElementById('modalTitleInput').value = p.title || '';
+            document.getElementById('modalPriceInput').value = p.price || '0';
             document.getElementById('modalQty').textContent = p.quantity || '-';
             document.getElementById('modalGame').textContent = p.game_name || '-';
             document.getElementById('modalSubGame').textContent = p.sub_game || '-';
