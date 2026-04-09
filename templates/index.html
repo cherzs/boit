@@ -1452,7 +1452,6 @@
             if (!products) return;
 
             allProducts = products;
-            currentPage = 1; // Reset to first page
             renderProducts();
         }
 
@@ -1466,7 +1465,14 @@
             const list = document.getElementById('productList');
             const pagination = document.getElementById('pagination');
 
-            const filteredProducts = allProducts.filter(p => !searchQuery || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())));
+            const q = searchQuery.toLowerCase();
+            const filteredProducts = allProducts.filter(p => {
+                if (!searchQuery) return true;
+                const titleMatch = p.title && p.title.toLowerCase().includes(q);
+                const gameMatch = p.game_name && p.game_name.toLowerCase().includes(q);
+                const subgameMatch = p.sub_game && p.sub_game.toLowerCase().includes(q);
+                return titleMatch || gameMatch || subgameMatch;
+            });
 
             if (filteredProducts.length === 0) {
                 list.innerHTML = `
@@ -1480,7 +1486,11 @@
             }
 
             const enabledCount = allProducts.filter(p => p.enabled).length;
-            const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+            const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
+            
+            // Bounds check current page just in case filtering shrank the page count
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
 
             // Get products for current page
             const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -1545,8 +1555,15 @@
         }
 
         function changePage(direction) {
-            const filteredProducts = allProducts.filter(p => !searchQuery || (p.title && p.title.toLowerCase().includes(searchQuery.toLowerCase())));
-            const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+            const q = searchQuery.toLowerCase();
+            const filteredProducts = allProducts.filter(p => {
+                if (!searchQuery) return true;
+                const titleMatch = p.title && p.title.toLowerCase().includes(q);
+                const gameMatch = p.game_name && p.game_name.toLowerCase().includes(q);
+                const subgameMatch = p.sub_game && p.sub_game.toLowerCase().includes(q);
+                return titleMatch || gameMatch || subgameMatch;
+            });
+            const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
             const newPage = currentPage + direction;
 
             if (newPage >= 1 && newPage <= totalPages) {
