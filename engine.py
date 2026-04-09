@@ -1062,7 +1062,7 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
                 save_session(context)
                 _log(log_cb, "💾 Session refreshed")
 
-            return products
+            return all_products
 
         finally:
             browser.close()
