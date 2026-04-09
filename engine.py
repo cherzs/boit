@@ -1473,7 +1473,20 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     # --- Step 4: Upload Images ---
     local_images = product.get("local_images", [])
     _log(log_cb, f"   Found {len(local_images)} image(s) in product data")
-    valid_images = [p for p in local_images if os.path.isfile(p)]
+    
+    valid_images = []
+    for p in local_images:
+        # Cross-platform fix: If path contains Windows slashes or doesn't exist, try local IMAGES_DIR
+        if not os.path.isfile(p):
+            filename = os.path.basename(p.replace("\\", "/"))
+            local_path = os.path.join(IMAGES_DIR, filename)
+            if os.path.isfile(local_path):
+                valid_images.append(local_path)
+                continue
+            _log(log_cb, f"   [DEBUG] Image not found: {p} (also checked {local_path})")
+        else:
+            valid_images.append(p)
+
     _log(log_cb, f"   Valid images on disk: {len(valid_images)}")
     
     if valid_images:
@@ -1482,6 +1495,8 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
             
             # Click the upload box via file chooser to ensure React captures the event
             upload_box = page.locator("div[class*='image-upload-box']").first
+            _log(log_cb, "   [DEBUG] Mengklik area <div class='image-upload-box'> untuk memilih gambar...")
+            
             if upload_box.is_visible():
                 with page.expect_file_chooser(timeout=5000) as fc_info:
                     upload_box.click()
