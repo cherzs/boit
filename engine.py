@@ -1216,9 +1216,9 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
         # Tunggu dialog muncul
         page.wait_for_timeout(1000)
         
-        remove_btn = page.locator("text='Remove Listing'").first
+        remove_btn = page.locator("button:has-text('Remove Listing'), button[class*='success-popup_btn-primary']").first
         if not remove_btn.is_visible():
-            remove_btn = page.locator("button:has-text('Remove Listing'), button[class*='danger'], button[class*='red']").first
+            remove_btn = page.locator("button[class*='danger'], button[class*='red']").first
             
         remove_btn.wait_for(state="visible", timeout=5000)
         _log(log_cb, "   Clicking Remove Listing...")
@@ -1382,25 +1382,18 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
             _random_delay(0.8, 1.5)
 
             # Fill quantity input (appears after checking the box)
-            # Cari input type number yang muncul setelah checkbox (biasanya di bawahnya)
-            # HINDARI input dengan placeholder yang mengandung "Eg:" karena itu title!
-            qty_input = page.locator("input[type='number']:not([placeholder*='Eg:'])").first
+            # Cari input quantity yang placeholder-nya "Eg: 10"
+            qty_input = page.locator("input[placeholder='Eg: 10']").first
             
-            # Atau cari input number yang dekat dengan checkbox
+            # Atau cari div input-wrapper dengan placeholder apa saja tapi posisinya setelah checkbox
             if not qty_input.is_visible():
-                qty_input = qty_checkbox.locator("xpath=../following-sibling::*//input[@type='number']").first
+                qty_input = qty_checkbox.locator("xpath=../following-sibling::*//input[contains(@placeholder, 'Eg:')]").first
                 
             if not qty_input.is_visible():
-                # Fallback: cari input number di halaman tapi bukan yang placeholder-nya mengandung "Eg:"
-                all_number_inputs = page.locator("input[type='number']").all()
-                for inp in all_number_inputs:
-                    try:
-                        placeholder = inp.get_attribute("placeholder") or ""
-                        if "Eg:" not in placeholder and inp.is_visible():
-                            qty_input = inp
-                            break
-                    except:
-                        continue
+                # Fallback: ambil input kedua atau yang paling masuk akal (hindari judul)
+                all_inputs = page.locator("div[class*='input-wrapper'] input").all()
+                if len(all_inputs) > 1:
+                    qty_input = all_inputs[-1] # Usually quantity is below title/price
                 
             if qty_input and qty_input.is_visible():
                 qty_input.fill("")
@@ -1485,14 +1478,26 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     
     if valid_images:
         try:
-            file_input = page.locator("input[type='file']").first
-            if file_input:
-                _log(log_cb, f"   Uploading {len(valid_images)} image(s)...")
-                file_input.set_input_files(valid_images)
-                _log(log_cb, f"   ✅ Uploaded {len(valid_images)} image(s)")
-                _random_delay(3, 5)  # Wait for upload processing
+            _log(log_cb, f"   Uploading {len(valid_images)} image(s)...")
+            
+            # Click the upload box via file chooser to ensure React captures the event
+            upload_box = page.locator("div[class*='image-upload-box']").first
+            if upload_box.is_visible():
+                with page.expect_file_chooser(timeout=5000) as fc_info:
+                    upload_box.click()
+                file_chooser = fc_info.value
+                file_chooser.set_files(valid_images)
             else:
-                _log(log_cb, "   WARNING: Could not find file input for images")
+                # Fallback directly to the input if box not found
+                file_input = page.locator("input[type='file'][accept*='image'], input[type='file']").first
+                if file_input:
+                    file_input.set_input_files(valid_images)
+                else:
+                    _log(log_cb, "   WARNING: Could not find file input for images")
+
+            _log(log_cb, f"   ✅ Uploaded {len(valid_images)} image(s)")
+            _random_delay(3, 5)  # Wait for upload processing
+            
         except Exception as e:
             _log(log_cb, f"   WARNING: Image upload error: {e}")
     else:
