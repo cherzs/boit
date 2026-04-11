@@ -781,6 +781,17 @@ def scrape_product_detail(page, product_url: str, log_cb=None) -> dict:
         pass
 
     _random_delay(1, 3)
+    
+    # --- ENFORCE GSTORE SELLER ---
+    # Ensure that "Gstore" exists on the page (meaning the store is GStore).
+    # If not, we skip this product.
+    try:
+        page_text = page.inner_text("body")
+        if "gstore" not in page_text.lower():
+            _log(log_cb, "   [SKIP] Product is not from GStore")
+            return {}
+    except Exception:
+        pass
 
     product = {"url": product_url, "scraped_at": datetime.now().isoformat()}
 
