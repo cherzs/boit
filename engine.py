@@ -667,53 +667,76 @@ def scrape_my_listings(page, log_cb=None) -> list:
             page.goto(target_url, wait_until="domcontentloaded", timeout=30_000)
             # Wait for content or skeletal loaders to disappear
             page.wait_for_timeout(3000)
-            
-            # Wait for any product row to appear (Crucial for dynamic loading)
+            # Wait for any product row to appear
             try:
                 _log(log_cb, f"    ⏳ Waiting for dashboard products to load...")
-                page.wait_for_selector("[class*='my-profile-table_row'], [class*='order-info'], .ant-table-row", timeout=15000)
-                # Give it an extra half-second for everything to settle
-                page.wait_for_timeout(1000)
+                page.wait_for_selector("div[class*='my-profile-table_row']", timeout=15000)
+                page.wait_for_timeout(2000)
             except Exception:
-                _log(log_cb, f"    ⚠️  Timeout waiting for products on page {page_num}. Trying to scrape anyway...")
+                _log(log_cb, f"    ⚠️  No product rows detected on page {page_num}.")
+                break
 
-            # Additional scroll to ensure all elements load
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight/2)")
-            page.wait_for_timeout(500)
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            _random_delay(1, 2)
-            
-            # Get products from current page
-            page_links = _collect_product_links(page, log_cb)
-            
+            # Find all rows
+            rows = page.query_selector_all("div[class*='my-profile-table_row']")
+            _log(log_cb, f"    🔎 Detected {len(rows)} rows on page {page_num}. Starting capture...")
+
+            page_links = []
+            for i in range(len(rows)):
+                try:
+                    # Re-find rows to avoid stale element reference
+                    current_rows = page.query_selector_all("div[class*='my-profile-table_row']")
+                    if i >= len(current_rows): break
+                    row = current_rows[i]
+                    
+                    # 1. Get Title for logging
+                    title_elem = row.query_selector("span, .title, [class*='tooltip-box-text']")
+                    title = title_elem.inner_text().strip() if title_elem else f"Product {i+1}"
+                    
+                    # 2. CLICK 1-BY-1 (As suggested by user)
+                    # We click the title/span to open the product page
+                    _log(log_cb, f"      👉 Clicking: {title[:40]}...")
+                    
+                    # Click and wait for navigation or new tab
+                    with page.context.expect_page() as new_page_info:
+                        # Click the title element
+                        if title_elem:
+                            title_elem.click()
+                        else:
+                            row.click()
+                        
+                    new_page = new_page_info.value
+                    new_page.wait_for_load_state("domcontentloaded")
+                    product_url = new_page.url.split("?")[0]
+                    new_page.close()
+                    
+                    if "/game/" in product_url:
+                        page_links.append({"url": product_url, "title": title})
+                        # _log(log_cb, f"      ✅ Captured: {product_url.split('/')[-1]}")
+                    
+                except Exception as e:
+                    _log(log_cb, f"      ⚠️ Failed to capture row {i+1}: {e}")
+                    continue
+
             if not page_links:
-                _log(log_cb, f"    ⚠️ No valid product listings found on page {page_num}. Ending scan.")
+                _log(log_cb, f"    ⚠️ No valid product listings captured on page {page_num}. Ending scan.")
                 break
                 
             new_links = 0
             for link in page_links:
                 url = link["url"]
                 title = link.get("title", "Unknown Title")
-                url_slug = url.rstrip('/').split('/')[-1]
                 
                 if url not in seen_urls:
                     seen_urls.add(url)
                     all_product_links.append(link)
                     new_links += 1
-                    _log(log_cb, f"      [NEW] {title} ({url_slug})")
-                else:
-                    _log(log_cb, f"      [DUP] {title} ({url_slug})")
+                    _log(log_cb, f"      [OK] {title}")
             
-            _log(log_cb, f"    Summary: Found {new_links} new product(s) on dashboard page {page_num}")
+            _log(log_cb, f"    Summary: Captured {new_links} new product(s) on page {page_num}")
             
-            # STOPSHIP: If we find 0 new links on the dashboard, it usually means 
-            # we've reached the end or the server is returning duplicates.
-            # Dashboard pagination is stable, so we don't need the 'empty_pages_in_a_row' buffer.
             if new_links == 0:
-                _log(log_cb, "    Stopping: No new products found on this page (End of dashboard or Duplicates).")
                 break
 
-            # Small delay between jumps
             _random_delay(1, 2)
 
         except Exception as e:
