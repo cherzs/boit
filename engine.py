@@ -668,18 +668,7 @@ def scrape_my_listings(page, log_cb=None) -> list:
             # Wait for content or skeletal loaders to disappear
             page.wait_for_timeout(3000)
             
-            # Wait for any product row to appear (Crucial for dynamic loading)
-            try:
-                _log(log_cb, f"    ⏳ Waiting for dashboard products to load...")
-                page.wait_for_selector("[class*='my-profile-table_row'], [class*='order-info'], .ant-table-row", timeout=15000)
-                # Give it an extra half-second for everything to settle
-                page.wait_for_timeout(1000)
-            except Exception:
-                _log(log_cb, f"    ⚠️  Timeout waiting for products on page {page_num}. Trying to scrape anyway...")
-
             # Additional scroll to ensure all elements load
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight/2)")
-            page.wait_for_timeout(500)
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             _random_delay(1, 2)
             
@@ -687,7 +676,7 @@ def scrape_my_listings(page, log_cb=None) -> list:
             page_links = _collect_product_links(page, log_cb)
             
             if not page_links:
-                _log(log_cb, f"    ⚠️ No valid product listings found on page {page_num}. Ending scan.")
+                _log(log_cb, f"    ⚠️ No products found on page {page_num}. Ending scan.")
                 break
                 
             new_links = 0
