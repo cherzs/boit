@@ -583,15 +583,31 @@ def _click_next_page(page, log_cb=None) -> bool:
             next_btn = page.query_selector(selector)
             if next_btn and next_btn.is_visible():
                 # Check if it's disabled
-                disabled = next_btn.get_attribute("disabled") or next_btn.get_attribute("aria-disabled")
+                disabled = next_btn.get_attribute("disabled") is not None or \
+                           next_btn.get_attribute("aria-disabled") == "true" or \
+                           "disabled" in (next_btn.get_attribute("class") or "").lower()
+
                 if disabled:
+                    _log(log_cb, f"  Next button found but it is disabled ({selector})")
                     continue
                 
-                next_btn.click()
-                _log(log_cb, "  Clicked 'Next' page button")
-                _random_delay(2, 4)  # Wait for page to load
+                _log(log_cb, f"  Clicking 'Next' using selector: {selector}")
+                
+                # Human-like interaction
+                next_btn.scroll_into_view_if_needed()
+                next_btn.hover()
+                _random_delay(0.2, 0.4)
+                
+                # Force click to ensure SPA event triggers
+                next_btn.click(force=True, timeout=5000)
+                
+                # Fallback: if click didn't seem to do anything (handled by caller's verification)
+                # But we can also dispatch a direct click event just in case
+                page.evaluate("(btn) => btn.dispatchEvent(new MouseEvent('click', {bubbles: true}))", next_btn)
+                
+                _random_delay(1, 2)
                 return True
-        except:
+        except Exception as e:
             continue
     
     return False
@@ -703,8 +719,8 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         # Get products from current page
         page_links = _collect_product_links(page, log_cb)
         
-        # Capture first product URL for "Page Turn" verification
-        first_url_before = page_links[0]["url"] if page_links else None
+        # Capture product URLs for "Page Turn" verification
+        urls_before = {link["url"] for link in page_links}
         
         new_links = 0
         for link in page_links:
@@ -721,19 +737,21 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
             break
             
         # --- VERIFY PAGE TURN ---
-        # Wait until the first product on the page is different from the previous one
+        # Wait until the set of products on the page changes
         # This confirms the SPA transition completed successfully.
         _log(log_cb, "  Waiting for products to refresh...")
         page_turned = False
-        for _ in range(20): # Try for 10 seconds (20 * 500ms)
+        for i in range(30): # Try for 15 seconds (30 * 500ms)
             page.wait_for_timeout(500)
+            
             # Re-collect links to see if they changed
             current_links = _collect_product_links(page, log_cb=None) 
-            first_url_after = current_links[0]["url"] if current_links else None
+            urls_after = {link["url"] for link in current_links}
             
-            if first_url_after and first_url_after != first_url_before:
+            # If the set of URLs is different, the page has turned
+            if urls_after and urls_after != urls_before:
                 page_turned = True
-                _log(log_cb, f"  ✅ Page turn confirmed ({page_num} -> {page_num+1})")
+                _log(log_cb, f"  ✅ Page turn confirmed ({page_num} -> {page_num+1}) after {i/2}s")
                 break
         
         if not page_turned:
