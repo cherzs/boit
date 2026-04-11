@@ -555,6 +555,11 @@ def _click_next_page(page, log_cb=None) -> bool:
     """
     # Common pagination selectors
     pagination_selectors = [
+        # ZeusX specific (provided by user)
+        'button[class*="arrow-right-icon"]',
+        'button.pagination_arrow-right-icon__TohKC',
+        '.pagination_pagination__DmXRJ button:last-child',
+        
         # Next button
         'a[rel="next"]',
         'button[rel="next"]',
@@ -568,6 +573,7 @@ def _click_next_page(page, log_cb=None) -> bool:
         # Page numbers - find current active page and click next
         'a[class*="active"] + a',  # Link right after active page
         'button[class*="active"] + button',
+        'button[class*="active"] + button', # For ZeusX style
         '.pagination .active + li a',
         '.pagination .current + li a',
     ]
@@ -692,23 +698,46 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         # Scroll to load all products on current page
         for _ in range(3):
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            _random_delay(1, 2)
+            _random_delay(0.5, 1)
         
         # Get products from current page
         page_links = _collect_product_links(page, log_cb)
-        new_links = 0
         
+        # Capture first product URL for "Page Turn" verification
+        first_url_before = page_links[0]["url"] if page_links else None
+        
+        new_links = 0
         for link in page_links:
             if link["url"] not in seen_urls:
                 seen_urls.add(link["url"])
                 all_product_links.append(link)
                 new_links += 1
         
-        _log(log_cb, f"    Found {new_links} new product(s) on this page")
+        _log(log_cb, f"    Found {new_links} new product(s) on page {page_num}")
         
         # Try to go to next page
         if not _click_next_page(page, log_cb):
-            _log(log_cb, "  No more pages to load")
+            _log(log_cb, "  No more pages found (Next button missing or disabled)")
+            break
+            
+        # --- VERIFY PAGE TURN ---
+        # Wait until the first product on the page is different from the previous one
+        # This confirms the SPA transition completed successfully.
+        _log(log_cb, "  Waiting for products to refresh...")
+        page_turned = False
+        for _ in range(20): # Try for 10 seconds (20 * 500ms)
+            page.wait_for_timeout(500)
+            # Re-collect links to see if they changed
+            current_links = _collect_product_links(page, log_cb=None) 
+            first_url_after = current_links[0]["url"] if current_links else None
+            
+            if first_url_after and first_url_after != first_url_before:
+                page_turned = True
+                _log(log_cb, f"  ✅ Page turn confirmed ({page_num} -> {page_num+1})")
+                break
+        
+        if not page_turned:
+            _log(log_cb, "  ⚠️ Page content did not change after clicking Next. Stopping.")
             break
     
     _log(log_cb, f"Finished scanning. Found {len(all_product_links)} total products")
