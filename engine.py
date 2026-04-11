@@ -640,75 +640,102 @@ def _get_current_page_number(page) -> int:
 def scrape_my_listings(page, log_cb=None) -> list:
     """
     Navigate to /my-listing (logged-in dashboard) and collect all product links.
-    Uses URL parameters (?page=X) for stable pagination.
+    Handles pagination to get ALL products.
     Returns a list of dicts: [{url, title}, ...]
     """
-    _log(log_cb, "Scanning My Listing dashboard using URL pagination...")
+    # Baseline URL for my-listing (user can provide filters in config if they want)
+    my_listing_url = f"{BASE_URL}/my-listing"
+    _log(log_cb, f"Scanning My Listing dashboard: {my_listing_url}")
 
-    # Filtered URL from user
-    base_url_with_filters = f"{BASE_URL}/my-listing?offer_status=%255B%255D&game_ids=%255B%255D&service_category_ids=%255B%255D&is_hidden=false"
+    try:
+        page.goto(my_listing_url, wait_until="domcontentloaded", timeout=30_000)
+    except PlaywrightTimeout:
+        _log(log_cb, "WARNING: My Listing page timed out")
+        return []
+
+    _random_delay(3, 5)
     
+    # Collect all products from all pages
     all_product_links = []
     seen_urls = set()
     max_pages = 50  # Safety limit
-    empty_pages_in_a_row = 0
     
     for page_num in range(1, max_pages + 1):
-        target_url = f"{base_url_with_filters}&page={page_num}"
-        _log(log_cb, f"  🚀 Navigating to Page {page_num}: {target_url}")
+        _log(log_cb, f"  Scanning dashboard page {page_num}...")
         
-        try:
-            # Navigate directly to the page URL
-            page.goto(target_url, wait_until="domcontentloaded", timeout=30_000)
-            # Wait for content or skeletal loaders to disappear
-            page.wait_for_timeout(3000)
-            
-            # Additional scroll to ensure all elements load
+        # Scroll to load all products on current page
+        for _ in range(3):
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            _random_delay(1, 2)
+            _random_delay(0.5, 1)
+        
+        # Get products from current page
+        page_links = _collect_product_links(page, log_cb)
+        
+        # Capture product URLs for "Page Turn" verification
+        urls_before = {link["url"] for link in page_links}
+        
+        new_links = 0
+        for link in page_links:
+            url = link["url"]
+            title = link.get("title", "Unknown Title")
+            url_slug = url.rstrip('/').split('/')[-1]
             
-            # Get products from current page
-            page_links = _collect_product_links(page, log_cb)
-            
-            if not page_links:
-                _log(log_cb, f"    ⚠️ No products found on page {page_num}. Ending scan.")
-                break
-                
-            new_links = 0
-            for link in page_links:
-                url = link["url"]
-                title = link.get("title", "Unknown Title")
-                url_slug = url.rstrip('/').split('/')[-1]
-                
-                if url not in seen_urls:
-                    seen_urls.add(url)
-                    all_product_links.append(link)
-                    new_links += 1
-                    _log(log_cb, f"      [NEW] {title} ({url_slug})")
-                else:
-                    _log(log_cb, f"      [DUP] {title} ({url_slug})")
-            
-            _log(log_cb, f"    Summary: Found {new_links} new product(s) on dashboard page {page_num}")
-            
-            # Break if we found absolutely no new links on this page AND no products at all
-            # (Usually, page_links being empty is the strongest signal)
-            if new_links == 0 and len(page_links) < 5: 
-                # This could happen if shuffling is really bad or if we reached end
-                empty_pages_in_a_row += 1
-                if empty_pages_in_a_row >= 2:
-                    _log(log_cb, "    Stopping: No new products across multiple pages.")
-                    break
+            if url not in seen_urls:
+                seen_urls.add(url)
+                all_product_links.append(link)
+                new_links += 1
+                _log(log_cb, f"      [NEW] {title} ({url_slug})")
             else:
-                empty_pages_in_a_row = 0
+                _log(log_cb, f"      [DUP] {title} ({url_slug})")
+        
+        _log(log_cb, f"    Summary: Found {new_links} new product(s) on dashboard page {page_num}")
+        
+        # Try to go to next page
+        _log(log_cb, "  Waiting for UI stability before next page...")
+        page.wait_for_timeout(4000)
 
-            # Small delay between jumps
-            _random_delay(2, 3)
-
-        except Exception as e:
-            _log(log_cb, f"  ❌ Error loading page {page_num}: {e}")
-            break
+        expected_page = page_num + 1
+        page_turned = False
+        
+        # Try multiple times to click and verify
+        for attempt in range(max_pages): # generic loop, we break early
+            if not _click_next_page(page, log_cb):
+                _log(log_cb, "  No more pages found (Next button missing or disabled)")
+                return all_product_links # Exit full function
+            
+            # --- VERIFICATION ---
+            _log(log_cb, "  Waiting for products to refresh (Slow internet mode: 30s timeout)...")
+            try:
+                # Wait for ANY URL change or product list content change
+                page.wait_for_function(
+                    """(before) => {
+                        const links = Array.from(document.querySelectorAll('a[href*="/game/"]')).map(a => a.href);
+                        return links.length > 0 && JSON.stringify(links) !== before;
+                    }""",
+                    json.dumps(list(urls_before)),
+                    timeout=30000
+                )
+                page_turned = True
+                
+                # --- UI SYNC CHECK ---
+                _log(log_cb, "  Verifying page number in UI...")
+                ui_page = 0
+                for sync_attempt in range(10): 
+                    ui_page = _get_current_page_number(page)
+                    if ui_page == expected_page:
+                        break
+                    page.wait_for_timeout(700)
+                
+                if ui_page != expected_page:
+                    _log(log_cb, f"  ❌ UI SYNC ERROR: Expected Page {expected_page} but UI shows Page {ui_page}. Stopping.")
+                    return all_product_links
+                else:
+                    _log(log_cb, f"  Synced: Page {ui_page} confirmed in UI")
+                break
+            except Exception:
+                _log(log_cb, "  ⚠️ Page content did not change after clicking Next. Retrying click...")
+                continue
     
-    _log(log_cb, f"Finished scanning. Found {len(all_product_links)} total unique products.")
     return all_product_links
 
 
