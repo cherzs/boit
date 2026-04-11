@@ -763,6 +763,7 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
                 # to prevent "jumping" (e.g., skips from 5 to 11).
                 # We add retries because SPA UI takes time to update text classes.
                 _log(log_cb, "  Verifying page number in UI...")
+                expected_page = page_num + 1
                 ui_page = 0
                 for sync_attempt in range(10): # retry for ~5-7 seconds
                     ui_page = _get_current_page_number(page)
