@@ -548,54 +548,12 @@ def _wait_for_captcha_solved(page, log_cb=None, stop_event=None, timeout_seconds
 # PRODUCT SCRAPING
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _click_next_page(page, log_cb=None, target_page: int = None) -> bool:
+def _click_next_page(page, log_cb=None) -> bool:
     """
     Try to click the next page button in pagination.
-    If target_page is provided, tries to click that specific number button.
     Returns True if successfully clicked, False otherwise.
     """
-    # If target_page is provided, prioritize clicking that specific number
-    if target_page:
-        _log(log_cb, f"  Searching for page number button: {target_page}")
-        
-        # Selectors for specific page numbers
-        # 1. Exact match with ZeusX class
-        # 2. General button with text
-        page_selectors = [
-            f'button[class*="page-item"]:has-text("{target_page}")',
-            f'button:has-text("{target_page}")',
-            f'a:has-text("{target_page}")'
-        ]
-        
-        for selector in page_selectors:
-            try:
-                # Find the button that EXACTLY matches the number (to avoid "1" matching "11")
-                elements = page.query_selector_all(selector)
-                for el in elements:
-                    text = el.inner_text().strip()
-                    if text == str(target_page):
-                        if el.is_visible():
-                            # Check if disabled
-                            disabled = el.get_attribute("disabled") is not None or \
-                                       el.get_attribute("aria-disabled") == "true" or \
-                                       "disabled" in (el.get_attribute("class") or "").lower()
-                            
-                            if disabled:
-                                _log(log_cb, f"  Page number button {target_page} is disabled")
-                                continue
-                            
-                            _log(log_cb, f"  Clicking page number button: {target_page}")
-                            el.scroll_into_view_if_needed()
-                            el.click(force=True)
-                            _random_delay(2, 4)
-                            return True
-            except:
-                continue
-
-    # Fallback to Arrow/Next button if target_page not found or not provided
-    # (Sometimes needed to reveal more numbers)
-    _log(log_cb, "  Target page number not found/provided, looking for 'Next' arrow...")
-    
+    # Common pagination selectors
     pagination_selectors = [
         # ZeusX specific (provided by user)
         'button[class*="arrow-right-icon"]',
@@ -643,7 +601,7 @@ def _click_next_page(page, log_cb=None, target_page: int = None) -> bool:
                         _log(log_cb, f"  Next button found but remains disabled after retries ({selector})")
                         continue # Try next selector or fail
                 
-                _log(log_cb, f"  Clicking 'Next' arrow using selector: {selector}")
+                _log(log_cb, f"  Clicking 'Next' using selector: {selector}")
                 
                 # Human-like interaction
                 next_btn.scroll_into_view_if_needed()
@@ -653,10 +611,10 @@ def _click_next_page(page, log_cb=None, target_page: int = None) -> bool:
                 # Force click to ensure SPA event triggers
                 next_btn.click(force=True, timeout=5000)
                 
-                # Fallback: if click didn't seem to do anything
+                # Fallback: if click didn't seem to do anything (handled by caller's verification)
                 page.evaluate("(btn) => btn.dispatchEvent(new MouseEvent('click', {bubbles: true}))", next_btn)
                 
-                _random_delay(2, 3) 
+                _random_delay(2, 3) # Give more time after click
                 return True
         except Exception as e:
             continue
@@ -786,9 +744,9 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         _log(log_cb, "  Waiting for UI stability before next page...")
         page.wait_for_timeout(3000)
         
-        # Try to go to next page (Target the specific NEXT number as requested)
-        if not _click_next_page(page, log_cb, target_page=page_num + 1):
-            _log(log_cb, "  No more page numbers found to click")
+        # Try to go to next page
+        if not _click_next_page(page, log_cb):
+            _log(log_cb, "  No more pages found (Next button missing or disabled)")
             break
             
         # --- VERIFY PAGE TURN ---
