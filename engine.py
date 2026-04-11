@@ -645,8 +645,8 @@ def scrape_my_listings(page, log_cb=None) -> list:
     """
     _log(log_cb, "Scanning My Listing dashboard using URL pagination...")
 
-    # Simplified URL as requested
-    base_url = f"{BASE_URL}/my-listing"
+    # Filtered URL from user
+    base_url_with_filters = f"{BASE_URL}/my-listing?offer_status=%255B%255D&game_ids=%255B%255D&service_category_ids=%255B%255D&is_hidden=false"
     
     all_product_links = []
     seen_urls = set()
@@ -654,8 +654,7 @@ def scrape_my_listings(page, log_cb=None) -> list:
     empty_pages_in_a_row = 0
     
     for page_num in range(1, max_pages + 1):
-        # Construct simple page URL
-        target_url = f"{base_url}?page={page_num}"
+        target_url = f"{base_url_with_filters}&page={page_num}"
         _log(log_cb, f"  🚀 Navigating to Page {page_num}: {target_url}")
         
         try:
