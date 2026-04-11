@@ -822,24 +822,25 @@ def _collect_product_links(page, log_cb=None) -> list:
     
     # 🎯 DASHBOARD (TABLE VIEW) LOGIC
     if is_dashboard:
-        # User provided class names for dashboard rows
-        rows = page.query_selector_all("[class*='my-profile-table_row']")
+        # Try to find rows
+        rows = page.query_selector_all("[class*='my-profile-table_row'], tr, .table-row")
         for row in rows:
             try:
-                # 1. Extract Title
-                title_elem = row.query_selector("[class*='my-listing-table_order-info'] span")
+                # Extract Title
+                title_elem = row.query_selector("[class*='order-info'] span, .title, .name")
                 title = title_elem.inner_text().strip() if title_elem else "Untitled"
                 
-                # 2. Extract Link specifically from this row
-                # We look for /game/ links that end in a numeric ID
-                linksInRow = row.query_selector_all('a[href*="/game/"]')
+                # Extract any link inside the row
+                linksInRow = row.query_selector_all('a[href]')
                 row_url = None
                 for a in linksInRow:
                     href = a.get_attribute("href")
                     if not href: continue
                     full_url = urljoin(BASE_URL, href).split("?")[0]
-                    # Strict Regex: must end with -[long_digits]
-                    if re.search(r"/game/.*-\d{6,}$", full_url):
+                    
+                    # Regex to match ZeusX product pattern: .../game/slug-ID (usually 7-9 digits)
+                    # We avoid categories which usually have /game/cat/ID/slug
+                    if re.search(r"/game/.*-\d{5,}$", full_url) and "/game/" in full_url:
                         row_url = full_url
                         break
                 
@@ -849,37 +850,35 @@ def _collect_product_links(page, log_cb=None) -> list:
                 continue
         
         if product_links:
-            _log(log_cb, f"   Captured {len(product_links)} products from dashboard table rows.")
+            _log(log_cb, f"   Found {len(product_links)} products in table rows.")
             return product_links
 
-    # 🎯 PUBLIC SELLER PAGE / FALLBACK LOGIC
-    container = None
-    if is_seller_page:
-        container = page.query_selector("[class*='seller-products-tab_product-wrapper']")
-    
-    target = container if container else page
-    links = target.query_selector_all('a[href*="/game/"]')
-    
+    # 🎯 FALLBACK: Broad search on the whole page 
+    # Use this if row-based fails or for public seller pages
+    # We target links that look like products: /game/[title]-[numericID]
+    all_links = page.query_selector_all("a[href*='/game/']")
     seen_urls = set()
-    for link in links:
+    
+    for link in all_links:
         try:
             href = link.get_attribute("href")
             if not href: continue
             
             full_url = urljoin(BASE_URL, href).split("?")[0]
             
-            # Tight Regex: Skip category links like /game/roblox/23/items
-            # Valid listing: .../game/title-slug-12345678
-            if re.search(r"/game/.*-\d{8,}$", full_url):
+            # THE KEY: A product URL on ZeusX ends with the ID, e.g., .../game/slug-12345678
+            # A category URL has slots AFTER the ID, e.g., .../game/slug/123/items
+            # We use a regex that ensures the ID is at the VERY end of the path segment
+            # Pattern: /game/ followed by anything, ending with dash and 6+ digits
+            if re.search(r"/game/[^/]+-\d{6,}$", full_url):
                 if full_url not in seen_urls:
                     seen_urls.add(full_url)
-                    # For seller page, title is usually in h5 or nearby
                     text = link.inner_text().strip() or full_url.split("/")[-1]
                     product_links.append({"url": full_url, "title": text[:200]})
         except Exception:
             continue
 
-    _log(log_cb, f"Found {len(product_links)} listing(s)")
+    _log(log_cb, f"Found {len(product_links)} product(s) via broad scan")
     return product_links
 
 
