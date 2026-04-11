@@ -263,7 +263,7 @@ st.markdown("**Scan dari public store link** - Menggunakan *Seller Profile URL* 
 # Use the URL from config/settings
 url_to_scan = seller_url.strip() if seller_url else ""
 
-if st.button("🔍 Scan Products", use_container_width=True, disabled=st.session_state.running):
+if st.button("🔍 Scan from Public Profile", use_container_width=True, disabled=st.session_state.running):
     if not url_to_scan:
         st.error("Masukkan Seller Profile URL di sidebar ⚙️ Settings terlebih dahulu!")
     else:
@@ -277,6 +277,16 @@ if st.button("🔍 Scan Products", use_container_width=True, disabled=st.session
             cfg["seller_url"] = url_to_scan
             engine.save_config(cfg)
         st.rerun()
+
+st.markdown("**Scan dari Dashboard (Login Required)** - Mengambil data dari halaman private `/my-listing`. Lebih stabil dan lengkap.")
+if st.button("🔐 Scan My Listings", use_container_width=True, disabled=st.session_state.running):
+    with st.spinner("Preparing Dashboard Scan…"):
+        scanned = engine.scan_all_products(
+            store_url="", # Trigger private dashboard scan
+            log_cb=add_log,
+        )
+        products = scanned
+    st.rerun()
 
 # Info message
 if products:
