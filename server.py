@@ -158,16 +158,13 @@ def api_scan():
     cfg = engine.load_config()
     data = request.json or {}
     
-    # If store_url is provided in request, use it. 
-    # Otherwise, if we want a public scan, we use config.
-    # But for "Scan My Listings", store_url will be empty and we should KEEP it empty.
-    data = request.json or {}
-    store_url = data.get("store_url", "") # Don't strip or fallback here if it's explicitly empty for dashboard
-    
-    # If it's a string with content, use it. 
-    # If it's omitted entirely from the request, maybe use config? 
-    # Better: only use config if we are in a 'public' context.
-    
+    # Gunakan store_url dari request, atau dari config, atau default
+    store_url = data.get("store_url", "").strip()
+    if not store_url:
+        store_url = cfg.get("seller_url", "").strip()
+    if not store_url:
+        store_url = "https://zeusx.com/seller/gstore-657837"  # Default URL
+
     def do_scan():
         engine.scan_all_products(
             headless=cfg.get("headless", False),
