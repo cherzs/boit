@@ -688,42 +688,33 @@ def scrape_my_listings(page, log_cb=None) -> list:
                     if i >= len(current_rows): break
                     row = current_rows[i]
                     
-                    # 1. Identified Title element (Support both h6 and span)
-                    title_elem = row.query_selector("h6, span, .title, [class*='tooltip-box-text']")
+                    # 1. Get Title for logging
+                    title_elem = row.query_selector("span, .title, [class*='tooltip-box-text']")
                     title = title_elem.inner_text().strip() if title_elem else f"Product {i+1}"
                     
-                    # 2. CLICK 1-BY-1 (Ctrl+Click to open in new tab)
-                    _log(log_cb, f"      👉 Scanning: {title[:40]}...")
+                    # 2. CLICK 1-BY-1 (As suggested by user)
+                    # We click the title/span to open the product page
+                    _log(log_cb, f"      👉 Clicking: {title[:40]}...")
                     
-                    try:
-                        with page.context.expect_page(timeout=10000) as new_page_info:
-                            # Use modifiers=['Control'] (or 'Meta' for Mac) to force new tab
-                            # This is much faster as we don't reload the dashboard
-                            if title_elem:
-                                title_elem.click(modifiers=['Control'])
-                            else:
-                                row.click(modifiers=['Control'])
-                            
-                        new_page = new_page_info.value
-                        new_page.wait_for_load_state("domcontentloaded")
-                        product_url = new_page.url.split("?")[0]
-                        new_page.close()
+                    # Click and wait for navigation or new tab
+                    with page.context.expect_page() as new_page_info:
+                        # Click the title element
+                        if title_elem:
+                            title_elem.click()
+                        else:
+                            row.click()
                         
-                        if "/game/" in product_url:
-                            page_links.append({"url": product_url, "title": title})
-                    except Exception as click_err:
-                        # Fallback if Ctrl+Click doesn't work: try normal click and go back
-                        _log(log_cb, f"         (Retry with normal click...)")
-                        title_elem.click()
-                        page.wait_for_load_state("domcontentloaded")
-                        product_url = page.url.split("?")[0]
-                        if "/game/" in product_url:
-                            page_links.append({"url": product_url, "title": title})
-                        page.go_back()
-                        page.wait_for_selector("div[class*='my-profile-table_row']")
+                    new_page = new_page_info.value
+                    new_page.wait_for_load_state("domcontentloaded")
+                    product_url = new_page.url.split("?")[0]
+                    new_page.close()
+                    
+                    if "/game/" in product_url:
+                        page_links.append({"url": product_url, "title": title})
+                        # _log(log_cb, f"      ✅ Captured: {product_url.split('/')[-1]}")
                     
                 except Exception as e:
-                    _log(log_cb, f"      ⚠️ Row {i+1} failed: {e}")
+                    _log(log_cb, f"      ⚠️ Failed to capture row {i+1}: {e}")
                     continue
 
             if not page_links:
