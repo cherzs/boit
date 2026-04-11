@@ -702,7 +702,7 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         _log(log_cb, "WARNING: Store page timed out")
         return []
 
-    _random_delay(2, 4)
+    _random_delay(3, 5)
     
     # Collect all products from all pages
     all_product_links = []
@@ -725,12 +725,19 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         
         new_links = 0
         for link in page_links:
-            if link["url"] not in seen_urls:
-                seen_urls.add(link["url"])
+            url = link["url"]
+            title = link.get("title", "Unknown Title")
+            url_slug = url.rstrip('/').split('/')[-1]
+            
+            if url not in seen_urls:
+                seen_urls.add(url)
                 all_product_links.append(link)
                 new_links += 1
+                _log(log_cb, f"      [NEW] {title} ({url_slug})")
+            else:
+                _log(log_cb, f"      [DUP] {title} ({url_slug})")
         
-        _log(log_cb, f"    Found {new_links} new product(s) on page {page_num}")
+        _log(log_cb, f"    Summary: Found {new_links} new product(s) on page {page_num}")
         
         # Pacing: Wait a bit before clicking Next (for slow internet/transitions)
         _log(log_cb, "  Waiting for UI stability before next page...")
