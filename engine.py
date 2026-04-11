@@ -555,10 +555,9 @@ def _click_next_page(page, log_cb=None) -> bool:
     """
     # Common pagination selectors
     pagination_selectors = [
-        # ZeusX specific (provided by user)
-        'button[class*="arrow-right-icon"]',
+        # ZeusX specific (provided by user) - only the SINGLE step arrow
         'button.pagination_arrow-right-icon__TohKC',
-        '.pagination_pagination__DmXRJ button:last-child',
+        'button[class*="arrow-right-icon"]',
         
         # Next button
         'a[rel="next"]',
@@ -567,15 +566,6 @@ def _click_next_page(page, log_cb=None) -> bool:
         'a:has-text(">")',
         'button:has-text("Next")',
         'a.pagination-next',
-        '[class*="pagination"] a:last-child',
-        '[class*="pagination"] button:last-child',
-        
-        # Page numbers - find current active page and click next
-        'a[class*="active"] + a',  # Link right after active page
-        'button[class*="active"] + button',
-        'button[class*="active"] + button', # For ZeusX style
-        '.pagination .active + li a',
-        '.pagination .current + li a',
     ]
     
     for selector in pagination_selectors:
@@ -627,6 +617,8 @@ def _get_current_page_number(page) -> int:
     try:
         # Look for active/current page number
         active_selectors = [
+            'button.pagination_active__iVvCL',
+            '.pagination_pagination__DmXRJ .pagination_active__iVvCL',
             '.pagination .active',
             '.pagination .current',
             '[class*="pagination"] [class*="active"]',
@@ -742,7 +734,7 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         
         # Pacing: Wait a bit before clicking Next (for slow internet/transitions)
         _log(log_cb, "  Waiting for UI stability before next page...")
-        page.wait_for_timeout(3000)
+        page.wait_for_timeout(4000)
         
         # Try to go to next page
         if not _click_next_page(page, log_cb):
@@ -764,7 +756,18 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
             # If the set of URLs is different, the page has turned
             if urls_after and urls_after != urls_before:
                 page_turned = True
-                _log(log_cb, f"  ✅ Page turn confirmed ({page_num} -> {page_num+1}) after {i/2}s")
+                _log(log_cb, f"  ✅ Page turn confirmed after {i/2}s")
+                
+                # --- UI SYNC CHECK ---
+                # Double-check that the UI actually shows the NEXT page number 
+                # to prevent "jumping" (e.g., skips from 5 to 11)
+                ui_page = _get_current_page_number(page)
+                expected_page = page_num + 1
+                if ui_page != expected_page:
+                    _log(log_cb, f"  ❌ UI SYNC ERROR: Expected Page {expected_page} but UI shows Page {ui_page}. Stopping to prevent de-sync.")
+                    return all_product_links
+                else:
+                    _log(log_cb, f"  Synced: Page {ui_page} confirmed in UI")
                 break
         
         if not page_turned:
