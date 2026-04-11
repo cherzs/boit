@@ -22,10 +22,6 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Stealth import (optional graceful degradation)
 try:
@@ -818,64 +814,35 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
     return all_product_links
 
 
-def _slugify_zeusx(text: str) -> str:
-    """
-    Convert a product title into a ZeusX-style URL slug.
-    Example: "Aizen V1 Set | Sailor Piece" -> "aizen-v1-set-or-sailor-piece"
-    """
-    if not text:
-        return "product"
-    
-    # 1. Replace '|' with 'or' (ZeusX specific)
-    s = text.replace('|', ' or ')
-    # 2. Lowercase and remove non-alphanumeric except spaces
-    s = s.lower()
-    s = re.sub(r'[^a-z0-9\s-]', '', s)
-    # 3. Replace spaces/hyphens with a single hyphen
-    s = re.sub(r'[\s-]+', '-', s).strip('-')
-    return s
-
-
 def _collect_product_links(page, log_cb=None) -> list:
     """Extract product links from the current page."""
     product_links = []
     is_dashboard = "/my-listing" in page.url
+    is_seller_page = "/seller/" in page.url
     
     # 🎯 DASHBOARD (TABLE VIEW) LOGIC
     if is_dashboard:
-        # Rows in the My Listing table
-        rows = page.query_selector_all("[class*='my-profile-table_row'], tr.ant-table-row")
+        # Try to find rows
+        rows = page.query_selector_all("[class*='my-profile-table_row'], tr, .table-row")
         for row in rows:
             try:
-                # 1. Extract Title
-                title_elem = row.query_selector("[class*='order-info'] span, [class*='tooltip-box-text']")
-                title = title_elem.inner_text().strip() if title_elem else ""
-                if not title:
-                    continue
+                # Extract Title
+                title_elem = row.query_selector("[class*='order-info'] span, .title, .name")
+                title = title_elem.inner_text().strip() if title_elem else "Untitled"
                 
-                # 2. Find the ACTUAL Link (Title and Image are usually <a> tags)
-                linksInRow = row.query_selector_all('a[href*="/game/"]')
+                # Extract any link inside the row
+                linksInRow = row.query_selector_all('a[href]')
                 row_url = None
                 for a in linksInRow:
                     href = a.get_attribute("href")
                     if not href: continue
                     full_url = urljoin(BASE_URL, href).split("?")[0]
-                    # Tighter regex for Listing URL: ends with -[8-10 digits]
-                    if re.search(r"/game/.*-\d{8,}$", full_url):
+                    
+                    # Regex to match ZeusX product pattern: .../game/slug-ID (usually 7-9 digits)
+                    # We avoid categories which usually have /game/cat/ID/slug
+                    if re.search(r"/game/.*-\d{5,}$", full_url) and "/game/" in full_url:
                         row_url = full_url
                         break
-                
-                # 3. URL Reconstruction (Fallback) - Use ID from HTML if link not found
-                if not row_url:
-                    row_html = row.inner_html()
-                    # Listing IDs are usually 8-9 digits on ZeusX
-                    id_matches = re.findall(r"\b\d{8,9}\b", row_html)
-                    if id_matches:
-                        # Pick the first match that looks like a valid listing ID
-                        likely_id = id_matches[0]
-                        slug = _slugify_zeusx(title)
-                        # Minimal working product URL (ZeusX redirects to full path)
-                        row_url = f"{BASE_URL}/game/p-{slug}-{likely_id}"
                 
                 if row_url:
                     product_links.append({"url": row_url, "title": title})
@@ -883,10 +850,12 @@ def _collect_product_links(page, log_cb=None) -> list:
                 continue
         
         if product_links:
-            _log(log_cb, f"   Captured {len(product_links)} products from dashboard rows")
+            _log(log_cb, f"   Found {len(product_links)} products in table rows.")
             return product_links
 
-    # 🎯 FALLBACK: Broad scan (Seller Profile)
+    # 🎯 FALLBACK: Broad search on the whole page 
+    # Use this if row-based fails or for public seller pages
+    # We target links that look like products: /game/[title]-[numericID]
     all_links = page.query_selector_all("a[href*='/game/']")
     seen_urls = set()
     
@@ -894,11 +863,14 @@ def _collect_product_links(page, log_cb=None) -> list:
         try:
             href = link.get_attribute("href")
             if not href: continue
+            
             full_url = urljoin(BASE_URL, href).split("?")[0]
             
-            # Product pattern: .../game/[anything]-12345678
-            # Category pattern: .../game/slug/123/items (no dash-ID at end)
-            if re.search(r"/game/.*-\d{8,}$", full_url):
+            # THE KEY: A product URL on ZeusX ends with the ID, e.g., .../game/slug-12345678
+            # A category URL has slots AFTER the ID, e.g., .../game/slug/123/items
+            # We use a regex that ensures the ID is at the VERY end of the path segment
+            # Pattern: /game/ followed by anything, ending with dash and 6+ digits
+            if re.search(r"/game/[^/]+-\d{6,}$", full_url):
                 if full_url not in seen_urls:
                     seen_urls.add(full_url)
                     text = link.inner_text().strip() or full_url.split("/")[-1]
@@ -1916,28 +1888,6 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
         if not _wait_for_captcha_solved(page, log_cb, stop_event, timeout_seconds=120):
             return False
         _log(log_cb, "   ✅ CAPTCHA solved! Now click the Login button")
-
-    # AUTO-FILL FROM .ENV (For testing convenience)
-    email = os.getenv("ZEUSX_EMAIL")
-    password = os.getenv("ZEUSX_PASSWORD")
-    
-    if email and password:
-        try:
-            _log(log_cb, f"   ⌨️  Auto-filling credentials for {email}...")
-            # Wait a bit for the form to be ready
-            page.wait_for_selector("input[type='email'], input[placeholder*='Email']", timeout=10000)
-            
-            # Fill email
-            page.fill("input[type='email'], input[placeholder*='Email']", email)
-            page.wait_for_timeout(500)
-            
-            # Fill password
-            page.fill("input[type='password']", password)
-            page.wait_for_timeout(1000)
-            
-            _log(log_cb, "   ✅ Credentials filled! Solving CAPTCHA or clicking Login...")
-        except Exception as e:
-            _log(log_cb, f"   ⚠️  Could not auto-fill: {e}")
     
     # Now wait for login to complete
     for i in range(timeout_seconds):
