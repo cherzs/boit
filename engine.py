@@ -1143,52 +1143,60 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
         _log(log_cb, "   ℹ️  Login required")
     _log(log_cb, "="*50)
     
-    session_valid = False
-    need_login = False
-    
-    # Check if auth.json exists (only needed for /my-listing, not public store)
-    if not is_public_scan:
-        if has_session():
-            session_valid = validate_session(log_cb)
-            if not session_valid:
-                _log(log_cb, "⚠️ Session expired - will need to re-login")
-                need_login = True
-        else:
-            _log(log_cb, "⚠️ No session - will need to login")
-            need_login = True
-    
     _log(log_cb, "Starting full product scan...")
     
-    # Open browser (visible like login)
     with sync_playwright() as pw:
+        # 1. Buka browser terlebih dahulu (Chrome Channel)
         browser = pw.chromium.launch(headless=False, channel="chrome")
         w = random.randint(1280, 1920)
         h = random.randint(800, 1080)
         
         kwargs = {"viewport": {"width": w, "height": h}}
-        if session_valid and has_session():
+        if has_session():
             kwargs["storage_state"] = AUTH_FILE
         
         context = browser.new_context(**kwargs)
         page = context.new_page()
         if HAS_STEALTH:
             stealth_sync(page)
-        
-        # Handle login if needed (only for my-listing)
-        if need_login:
-            _log(log_cb, "🌐 Opening login page...")
-            page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
-            
-            if not _wait_for_login_in_browser(page, log_cb, None):
-                _log(log_cb, "❌ Login failed or cancelled")
+
+        # 2. Jika bukan public scan, pastikan kita login
+        if not is_public_scan:
+            _log(log_cb, "🔐 Checking login status for dashboard scan...")
+            try:
+                # Coba buka dashboard
+                page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=30_000)
+                page.wait_for_timeout(3000)
+
+                # Jika mental ke login atau ada form login, berarti butuh login manual
+                if "/login" in page.url or page.query_selector("input[type='password']"):
+                    _log(log_cb, "⚠️ Session expired or not logged in. Please login manually in the browser window.")
+                    if "/login" not in page.url:
+                        page.goto(f"{BASE_URL}/login")
+                    
+                    if not _wait_for_login_in_browser(page, log_cb, None):
+                        _log(log_cb, "❌ Login failed or cancelled")
+                        browser.close()
+                        return []
+                    
+                    save_session(context)
+                    _log(log_cb, "💾 Session saved and synchronized.")
+                else:
+                    _log(log_cb, "✅ Session active. Proceeding to scan...")
+            except Exception as e:
+                _log(log_cb, f"⚠️ Error during login check: {e}")
+                # Fallback: tetap coba lanjut kalau mungkin
+        else:
+            # Public scan: tinggal buka URL-nya saja
+            try:
+                page.goto(store_url, wait_until="domcontentloaded", timeout=30_000)
+            except Exception as e:
+                _log(log_cb, f"❌ Failed to open store URL: {e}")
                 browser.close()
                 return []
-            
-            save_session(context)
-            _log(log_cb, "💾 Session saved")
 
         try:
-            # Get product links from store URL or My Listing
+            # Get product links from current page (now that we are logged in or on the right page)
             if store_url:
                 product_links = scrape_store_page(page, store_url, log_cb)
             else:
