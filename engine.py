@@ -580,16 +580,26 @@ def _click_next_page(page, log_cb=None) -> bool:
     
     for selector in pagination_selectors:
         try:
-            next_btn = page.query_selector(selector)
-            if next_btn and next_btn.is_visible():
+            # Retry loop for disabled state (e.g. while loading)
+            max_retries = 3
+            for attempt in range(max_retries):
+                next_btn = page.query_selector(selector)
+                if not next_btn or not next_btn.is_visible():
+                    break # Selector not found, try next selector
+                
                 # Check if it's disabled
                 disabled = next_btn.get_attribute("disabled") is not None or \
                            next_btn.get_attribute("aria-disabled") == "true" or \
                            "disabled" in (next_btn.get_attribute("class") or "").lower()
 
                 if disabled:
-                    _log(log_cb, f"  Next button found but it is disabled ({selector})")
-                    continue
+                    if attempt < max_retries - 1:
+                        _log(log_cb, f"  Next button is disabled ({selector}), waiting 2s... (Retry {attempt+1}/{max_retries})")
+                        page.wait_for_timeout(2000)
+                        continue
+                    else:
+                        _log(log_cb, f"  Next button found but remains disabled after retries ({selector})")
+                        continue # Try next selector or fail
                 
                 _log(log_cb, f"  Clicking 'Next' using selector: {selector}")
                 
@@ -602,10 +612,9 @@ def _click_next_page(page, log_cb=None) -> bool:
                 next_btn.click(force=True, timeout=5000)
                 
                 # Fallback: if click didn't seem to do anything (handled by caller's verification)
-                # But we can also dispatch a direct click event just in case
                 page.evaluate("(btn) => btn.dispatchEvent(new MouseEvent('click', {bubbles: true}))", next_btn)
                 
-                _random_delay(1, 2)
+                _random_delay(2, 3) # Give more time after click
                 return True
         except Exception as e:
             continue
@@ -731,6 +740,10 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         
         _log(log_cb, f"    Found {new_links} new product(s) on page {page_num}")
         
+        # Pacing: Wait a bit before clicking Next (for slow internet/transitions)
+        _log(log_cb, "  Waiting for UI stability before next page...")
+        page.wait_for_timeout(3000)
+        
         # Try to go to next page
         if not _click_next_page(page, log_cb):
             _log(log_cb, "  No more pages found (Next button missing or disabled)")
@@ -739,9 +752,9 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         # --- VERIFY PAGE TURN ---
         # Wait until the set of products on the page changes
         # This confirms the SPA transition completed successfully.
-        _log(log_cb, "  Waiting for products to refresh...")
+        _log(log_cb, "  Waiting for products to refresh (Slow internet mode: 30s timeout)...")
         page_turned = False
-        for i in range(30): # Try for 15 seconds (30 * 500ms)
+        for i in range(60): # Try for 30 seconds (60 * 500ms)
             page.wait_for_timeout(500)
             
             # Re-collect links to see if they changed
@@ -755,7 +768,7 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
                 break
         
         if not page_turned:
-            _log(log_cb, "  ⚠️ Page content did not change after clicking Next. Stopping.")
+            _log(log_cb, "  ⚠️ Page content did not change after 30s. Stopping (Check connection).")
             break
     
     _log(log_cb, f"Finished scanning. Found {len(all_product_links)} total products")
