@@ -760,9 +760,16 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
                 
                 # --- UI SYNC CHECK ---
                 # Double-check that the UI actually shows the NEXT page number 
-                # to prevent "jumping" (e.g., skips from 5 to 11)
-                ui_page = _get_current_page_number(page)
-                expected_page = page_num + 1
+                # to prevent "jumping" (e.g., skips from 5 to 11).
+                # We add retries because SPA UI takes time to update text classes.
+                _log(log_cb, "  Verifying page number in UI...")
+                ui_page = 0
+                for sync_attempt in range(10): # retry for ~5-7 seconds
+                    ui_page = _get_current_page_number(page)
+                    if ui_page == expected_page:
+                        break
+                    page.wait_for_timeout(700)
+                
                 if ui_page != expected_page:
                     _log(log_cb, f"  ❌ UI SYNC ERROR: Expected Page {expected_page} but UI shows Page {ui_page}. Stopping to prevent de-sync.")
                     return all_product_links
@@ -798,31 +805,39 @@ def _collect_product_links(page, log_cb=None) -> list:
             container = page.query_selector("main")
     
     if container:
-        links = container.query_selector_all("a[href]")
+        # Wait for skeleton placeholders to be replaced by real content
+        try:
+            container.wait_for_selector("[class*='offers-card_offer-card']", timeout=5000)
+        except:
+            pass
+        
+        # Target main product title links and offer card links
+        links = container.query_selector_all('h5 a[href], a[href*="/game/"][class*="offer-card"]')
+        if not links:
+            links = container.query_selector_all("a[href]")
     else:
         links = page.query_selector_all("a[href]")
+        
     seen_urls = set()
-
     for link in links:
         try:
             href = link.get_attribute("href")
-            text = link.inner_text().strip()
-
-            if not href or not text:
+            if not href:
                 continue
-
-            full_url = urljoin(BASE_URL, href)
             
-            # More flexible regex to catch various ZeusX product URL formats
-            # Matches: /game/anything/product-name-123 or /product-name-123456
+            full_url = urljoin(BASE_URL, href).split("?")[0]
+            
+            # Filter and regex to catch ZeusX product URL formats
             is_product = (
-                re.search(r"/game/[^/]+/[^/]+-\d+", full_url) or  # /game/category/name-123
-                re.search(r"/[\w-]+-\d{5,}$", full_url) or         # name-12345 (any path)
-                ("/game/" in full_url and "-" in full_url and any(c.isdigit() for c in full_url))  # fallback
+                re.search(r"/game/[^/]+/[^/]+-\d+", full_url) or
+                re.search(r"/[\w-]+-\d{5,}$", full_url) or
+                ("/game/" in full_url and "-" in full_url and any(c.isdigit() for c in full_url))
             )
             
-            if is_product and full_url not in seen_urls and full_url.startswith(BASE_URL):
+            if is_product and full_url not in seen_urls:
                 seen_urls.add(full_url)
+                # Try to get text, fallback to slug if empty
+                text = link.inner_text().strip() or full_url.split("/")[-1]
                 product_links.append({"url": full_url, "title": text[:200]})
         except Exception:
             continue
@@ -862,15 +877,19 @@ def scrape_product_detail(page, product_url: str, log_cb=None) -> dict:
     except PlaywrightTimeout:
         pass
 
-    _random_delay(1, 3)
+    _random_delay(2, 4)
     
     # --- ENFORCE GSTORE SELLER ---
     # Ensure that "Gstore" exists on the page (meaning the store is GStore).
-    # If not, we skip this product.
+    # We check multiple areas to be sure.
     try:
-        page_text = page.inner_text("body")
-        if "gstore" not in page_text.lower():
-            _log(log_cb, "   [SKIP] Product is not from GStore")
+        # Wait a bit for the seller info section to load
+        page.wait_for_timeout(2000)
+        
+        # Check text content of the entire body as a broad filter
+        body_text = page.inner_text("body").lower()
+        if "gstore" not in body_text:
+            _log(log_cb, "   [SKIP] Product is not from GStore (Seller name not found)")
             return {}
     except Exception:
         pass
