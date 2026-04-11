@@ -854,50 +854,53 @@ def _collect_product_links(page, log_cb=None) -> list:
     
     # 🎯 DASHBOARD (TABLE VIEW) LOGIC
     if is_dashboard:
-        # Rows in the My Listing table
-        rows = page.query_selector_all("[class*='my-profile-table_row'], tr.ant-table-row")
+        # Search for rows using a very broad class selector
+        rows = page.query_selector_all("div[class*='my-profile-table_row'], tr, .ant-table-row")
         for row in rows:
             try:
-                # 1. Extract Title
-                title_elem = row.query_selector("[class*='order-info'] span, [class*='tooltip-box-text']")
+                # 1. Extract Title (Support multiple possible selectors)
+                title_elem = row.query_selector("[class*='order-info'] span, [class*='tooltip-box-text'], .title, .name")
                 title = title_elem.inner_text().strip() if title_elem else ""
-                if not title:
-                    continue
                 
-                # 2. Find the ACTUAL Link (Title and Image are usually <a> tags)
-                linksInRow = row.query_selector_all('a[href*="/game/"]')
+                # 2. THE ID HUNTER: Search EVERYTHING inside the row's HTML for the 8-10 digit ID
+                row_html = row.inner_html()
+                # Find all 8-11 digit numbers (ZeusX IDs are usually 8-9)
+                all_numbers = re.findall(r"\b\d{8,11}\b", row_html)
+                
+                # Filter out numbers that are definitely not IDs (like quantity '20' or dates)
+                # We prioritize the one that appears first or in a value/id attribute
+                listing_id = None
+                if all_numbers:
+                    # Often the ID is the first long number in the HTML
+                    listing_id = all_numbers[0]
+                
+                # 3. URL RECONSTRUCTION
                 row_url = None
+                
+                # Plan A: Try to find a direct link first
+                linksInRow = row.query_selector_all('a[href*="/game/"]')
                 for a in linksInRow:
                     href = a.get_attribute("href")
-                    if not href: continue
-                    full_url = urljoin(BASE_URL, href).split("?")[0]
-                    # Tighter regex for Listing URL: ends with -[8-10 digits]
-                    if re.search(r"/game/.*-\d{8,}$", full_url):
-                        row_url = full_url
+                    if href and re.search(r"-\d{8,}$", href.split("?")[0]):
+                        row_url = urljoin(BASE_URL, href).split("?")[0]
                         break
                 
-                # 3. URL Reconstruction (Fallback) - Use ID from HTML if link not found
-                if not row_url:
-                    row_html = row.inner_html()
-                    # Listing IDs are usually 8-9 digits on ZeusX
-                    id_matches = re.findall(r"\b\d{8,9}\b", row_html)
-                    if id_matches:
-                        # Pick the first match that looks like a valid listing ID
-                        likely_id = id_matches[0]
-                        slug = _slugify_zeusx(title)
-                        # Minimal working product URL (ZeusX redirects to full path)
-                        row_url = f"{BASE_URL}/game/p-{slug}-{likely_id}"
+                # Plan B: If no link found, but we have an ID, BUILD IT!
+                if not row_url and listing_id and title:
+                    slug = _slugify_zeusx(title)
+                    # Short form URL that ZeusX automatically redirects to full path
+                    row_url = f"{BASE_URL}/game/p-{slug}-{listing_id}"
                 
                 if row_url:
-                    product_links.append({"url": row_url, "title": title})
+                    product_links.append({"url": row_url, "title": title or f"Product {listing_id}"})
             except Exception:
                 continue
         
         if product_links:
-            _log(log_cb, f"   Captured {len(product_links)} products from dashboard rows")
+            _log(log_cb, f"   Captured {len(product_links)} products from dashboard rows (Aggressive Scan active)")
             return product_links
 
-    # 🎯 FALLBACK: Broad scan (Seller Profile)
+    # 🎯 FALLBACK / SELLER PAGE
     all_links = page.query_selector_all("a[href*='/game/']")
     seen_urls = set()
     
@@ -906,9 +909,6 @@ def _collect_product_links(page, log_cb=None) -> list:
             href = link.get_attribute("href")
             if not href: continue
             full_url = urljoin(BASE_URL, href).split("?")[0]
-            
-            # Product pattern: .../game/[anything]-12345678
-            # Category pattern: .../game/slug/123/items (no dash-ID at end)
             if re.search(r"/game/.*-\d{8,}$", full_url):
                 if full_url not in seen_urls:
                     seen_urls.add(full_url)
