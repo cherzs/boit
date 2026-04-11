@@ -1104,7 +1104,7 @@
 <body>
     <div class="toast-container" id="toasts"></div>
 
-        <!-- PRODUCT DETAIL MODAL -->
+    <!-- PRODUCT DETAIL MODAL -->
     <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
         <div class="modal" onclick="event.stopPropagation()">
             <button class="modal-close"
@@ -1117,7 +1117,8 @@
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin-bottom:1rem">
                 <div class="modal-field form-group" style="margin-bottom: 0;">
                     <label>Price ($)</label>
-                    <input type="number" step="0.01" id="modalPriceInput" style="color:var(--green); font-weight:700; font-size:1.1rem; width:100%;" autocomplete="off">
+                    <input type="number" step="0.01" id="modalPriceInput"
+                        style="color:var(--green); font-weight:700; font-size:1.1rem; width:100%;" autocomplete="off">
                 </div>
                 <div class="modal-field">
                     <div class="label">Item Type</div>
@@ -1158,10 +1159,13 @@
                 <div class="label">Scraped At</div>
                 <div class="value" id="modalScraped">-</div>
             </div>
-                        <a class="modal-link" id="modalLink" href="#" target="_blank">Open on ZeusX &rarr;</a>
-            <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 1rem;">
-                <button class="btn btn-outline" style="width:auto; margin:0;" onclick="document.getElementById('modalOverlay').classList.remove('active')">Close</button>
-                <button class="btn btn-success" style="width:auto; margin:0;" onclick="saveProductFromModal()">Save Changes</button>
+            <a class="modal-link" id="modalLink" href="#" target="_blank">Open on ZeusX &rarr;</a>
+            <div
+                style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button class="btn btn-outline" style="width:auto; margin:0;"
+                    onclick="document.getElementById('modalOverlay').classList.remove('active')">Close</button>
+                <button class="btn btn-success" style="width:auto; margin:0;" onclick="saveProductFromModal()">Save
+                    Changes</button>
             </div>
         </div>
     </div>
@@ -1257,11 +1261,12 @@
                     <div class="panel-title">Scan Products</div>
 
                     <p style="margin-bottom:1rem; color:var(--text-secondary); font-size:0.9rem;">
-                        Scan dari public store link. Tidak butuh login.
+                        Scan dari private Dashboard (Login Required). Lebih stabil dan lengkap (untuk mendapatkan ke-128
+                        produk Anda).
                     </p>
-                    <button class="btn btn-primary" id="scanPublicBtn" onclick="scanPublicStore()"
-                        style="margin-top:0.5rem;">
-                        Scan Store
+                    <button class="btn btn-primary" id="scanDashboardBtn" onclick="scanMyListings()"
+                        style="width:100%;">
+                        🔐 Scan My Listings
                     </button>
 
                     <div id="scanMessage" style="margin-top:1rem;"></div>
@@ -1417,7 +1422,7 @@
             // Buttons
             document.getElementById('startBtn').disabled = s.running;
             document.getElementById('stopBtn').disabled = !s.running;
-            document.getElementById('scanPublicBtn').disabled = s.running;
+            document.getElementById('scanDashboardBtn').disabled = s.running;
 
             // Settings
             if (s.settings) {
@@ -1487,7 +1492,7 @@
 
             const enabledCount = allProducts.filter(p => p.enabled).length;
             const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
-            
+
             // Bounds check current page just in case filtering shrank the page count
             if (currentPage > totalPages) currentPage = totalPages;
             if (currentPage < 1) currentPage = 1;
@@ -1601,7 +1606,7 @@
             if (s) updateStatus(s);
         }
 
-                async function saveProductFromModal() {
+        async function saveProductFromModal() {
             const url = document.getElementById('modalProductUrl').value;
             const newTitle = document.getElementById('modalTitleInput').value;
             const newPrice = document.getElementById('modalPriceInput').value;
@@ -1642,7 +1647,7 @@
         // ═══════════════════════════════════════════════════════════
         // PRODUCT DETAIL MODAL
         // ═══════════════════════════════════════════════════════════
-                async function showProductDetail(encodedUrl) {
+        async function showProductDetail(encodedUrl) {
             const url = decodeURIComponent(encodedUrl);
             const p = await api(`product/detail?url=${encodeURIComponent(url)}`);
             if (!p) return;
@@ -1758,16 +1763,16 @@
         // SCAN ACTIONS
         // ═══════════════════════════════════════════════════════════
         async function scanPublicStore() {
-            document.getElementById('scanPublicBtn').disabled = true;
+            const url = document.getElementById('sellerUrl').value;
             showToast('Scanning store...', 'info');
+            await api('scan', 'POST', { store_url: url });
+        }
 
-            // Tidak perlu kirim URL, server akan pakai default
-            const res = await api('scan', 'POST', {});
-            if (res) {
-                showToast('Scan complete!', 'success');
-                loadProducts();
+        async function scanMyListings() {
+            if (confirm("Bot akan membuka browser untuk login (jika diperlukan) dan mengambil data dari /my-listing. Lanjutkan?")) {
+                showToast('Scanning dashboard...', 'info');
+                await api('scan', 'POST', { store_url: "" });
             }
-            document.getElementById('scanPublicBtn').disabled = false;
         }
 
         async function scanMyProducts() {
