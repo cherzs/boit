@@ -601,8 +601,8 @@ def _click_next_page(page, log_cb=None) -> bool:
                 # Force click to ensure SPA event triggers
                 next_btn.click(force=True, timeout=5000)
                 
-                # Fallback: if click didn't seem to do anything (handled by caller's verification)
-                page.evaluate("(btn) => btn.dispatchEvent(new MouseEvent('click', {bubbles: true}))", next_btn)
+                # We remove the dispatchEvent fallback to prevent double-clicking
+                # and jumping over pages (e.g. skipping from 1 to 3).
                 
                 _random_delay(2, 3) # Give more time after click
                 return True
