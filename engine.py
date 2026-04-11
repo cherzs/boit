@@ -691,19 +691,15 @@ def scrape_my_listings(page, log_cb=None) -> list:
             
             _log(log_cb, f"    Summary: Found {new_links} new product(s) on dashboard page {page_num}")
             
-            # Break if we found absolutely no new links on this page AND no products at all
-            # (Usually, page_links being empty is the strongest signal)
-            if new_links == 0 and len(page_links) < 5: 
-                # This could happen if shuffling is really bad or if we reached end
-                empty_pages_in_a_row += 1
-                if empty_pages_in_a_row >= 2:
-                    _log(log_cb, "    Stopping: No new products across multiple pages.")
-                    break
-            else:
-                empty_pages_in_a_row = 0
+            # STOPSHIP: If we find 0 new links on the dashboard, it usually means 
+            # we've reached the end or the server is returning duplicates.
+            # Dashboard pagination is stable, so we don't need the 'empty_pages_in_a_row' buffer.
+            if new_links == 0:
+                _log(log_cb, "    Stopping: No new products found on this page (End of dashboard or Duplicates).")
+                break
 
             # Small delay between jumps
-            _random_delay(2, 3)
+            _random_delay(1, 2)
 
         except Exception as e:
             _log(log_cb, f"  ❌ Error loading page {page_num}: {e}")
@@ -821,61 +817,69 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
 def _collect_product_links(page, log_cb=None) -> list:
     """Extract product links from the current page."""
     product_links = []
-    
-    # Identify if we are on a public seller page
+    is_dashboard = "/my-listing" in page.url
     is_seller_page = "/seller/" in page.url
     
-    # Try to find a specific container to limit the search area
-    # This prevents picking up "Similar Products" or "Trending Products"
+    # 🎯 DASHBOARD (TABLE VIEW) LOGIC
+    if is_dashboard:
+        # User provided class names for dashboard rows
+        rows = page.query_selector_all("[class*='my-profile-table_row']")
+        for row in rows:
+            try:
+                # 1. Extract Title
+                title_elem = row.query_selector("[class*='my-listing-table_order-info'] span")
+                title = title_elem.inner_text().strip() if title_elem else "Untitled"
+                
+                # 2. Extract Link specifically from this row
+                # We look for /game/ links that end in a numeric ID
+                linksInRow = row.query_selector_all('a[href*="/game/"]')
+                row_url = None
+                for a in linksInRow:
+                    href = a.get_attribute("href")
+                    if not href: continue
+                    full_url = urljoin(BASE_URL, href).split("?")[0]
+                    # Strict Regex: must end with -[long_digits]
+                    if re.search(r"/game/.*-\d{6,}$", full_url):
+                        row_url = full_url
+                        break
+                
+                if row_url:
+                    product_links.append({"url": row_url, "title": title})
+            except Exception:
+                continue
+        
+        if product_links:
+            _log(log_cb, f"   Captured {len(product_links)} products from dashboard table rows.")
+            return product_links
+
+    # 🎯 PUBLIC SELLER PAGE / FALLBACK LOGIC
     container = None
     if is_seller_page:
-        # The main product list for a seller is usually in this wrapper
         container = page.query_selector("[class*='seller-products-tab_product-wrapper']")
-        if container:
-            _log(log_cb, "   Scope restricted to seller product wrapper")
-        else:
-            # Fallback if specific wrapper not found
-            container = page.query_selector("main")
     
-    if container:
-        # Wait for skeleton placeholders to be replaced by real content
-        try:
-            container.wait_for_selector("[class*='offers-card_offer-card']", timeout=5000)
-        except:
-            pass
-        
-        # Target main product title links and offer card links
-        links = container.query_selector_all('h5 a[href], a[href*="/game/"][class*="offer-card"]')
-        if not links:
-            links = container.query_selector_all("a[href]")
-    else:
-        links = page.query_selector_all("a[href]")
-        
+    target = container if container else page
+    links = target.query_selector_all('a[href*="/game/"]')
+    
     seen_urls = set()
     for link in links:
         try:
             href = link.get_attribute("href")
-            if not href:
-                continue
+            if not href: continue
             
             full_url = urljoin(BASE_URL, href).split("?")[0]
             
-            # Filter and regex to catch ZeusX product URL formats
-            is_product = (
-                re.search(r"/game/[^/]+/[^/]+-\d+", full_url) or
-                re.search(r"/[\w-]+-\d{5,}$", full_url) or
-                ("/game/" in full_url and "-" in full_url and any(c.isdigit() for c in full_url))
-            )
-            
-            if is_product and full_url not in seen_urls:
-                seen_urls.add(full_url)
-                # Try to get text, fallback to slug if empty
-                text = link.inner_text().strip() or full_url.split("/")[-1]
-                product_links.append({"url": full_url, "title": text[:200]})
+            # Tight Regex: Skip category links like /game/roblox/23/items
+            # Valid listing: .../game/title-slug-12345678
+            if re.search(r"/game/.*-\d{8,}$", full_url):
+                if full_url not in seen_urls:
+                    seen_urls.add(full_url)
+                    # For seller page, title is usually in h5 or nearby
+                    text = link.inner_text().strip() or full_url.split("/")[-1]
+                    product_links.append({"url": full_url, "title": text[:200]})
         except Exception:
             continue
 
-    _log(log_cb, f"Found {len(product_links)} product(s)")
+    _log(log_cb, f"Found {len(product_links)} listing(s)")
     return product_links
 
 
