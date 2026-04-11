@@ -718,7 +718,26 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
 def _collect_product_links(page, log_cb=None) -> list:
     """Extract product links from the current page."""
     product_links = []
-    links = page.query_selector_all("a[href]")
+    
+    # Identify if we are on a public seller page
+    is_seller_page = "/seller/" in page.url
+    
+    # Try to find a specific container to limit the search area
+    # This prevents picking up "Similar Products" or "Trending Products"
+    container = None
+    if is_seller_page:
+        # The main product list for a seller is usually in this wrapper
+        container = page.query_selector("[class*='seller-products-tab_product-wrapper']")
+        if container:
+            _log(log_cb, "   Scope restricted to seller product wrapper")
+        else:
+            # Fallback if specific wrapper not found
+            container = page.query_selector("main")
+    
+    if container:
+        links = container.query_selector_all("a[href]")
+    else:
+        links = page.query_selector_all("a[href]")
     seen_urls = set()
 
     for link in links:
