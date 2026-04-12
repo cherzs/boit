@@ -1347,6 +1347,7 @@
         // SOCKET.IO REAL-TIME
         // ═══════════════════════════════════════════════════════════
         const socket = io();
+        let selectedUrls = new Set();
 
         socket.on('log', (data) => {
             appendLog(data.message);
@@ -1637,22 +1638,90 @@
         }
 
         // ═══════════════════════════════════════════════════════════
+        function toggleSelection(encodedUrl) {
+            event.stopPropagation();
+            const url = decodeURIComponent(encodedUrl);
+            if (selectedUrls.has(url)) {
+                selectedUrls.delete(url);
+            } else {
+                selectedUrls.add(url);
+            }
+            updateSelectionUI();
+        }
+
+        function toggleSelectionAll(select) {
+            const q = searchQuery.toLowerCase();
+            const filteredProducts = allProducts.filter(p => {
+                if (!searchQuery) return true;
+                const titleMatch = p.title && p.title.toLowerCase().includes(q);
+                const gameMatch = p.game_name && p.game_name.toLowerCase().includes(q);
+                return titleMatch || gameMatch;
+            });
+
+            if (select) {
+                filteredProducts.forEach(p => selectedUrls.add(p.url));
+            } else {
+                selectedUrls.clear();
+            }
+            renderProducts();
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedUrls.size;
+            const btn = document.getElementById('bulkDeleteBtn');
+            const countEl = document.getElementById('selectedCount');
+            if (countEl) countEl.textContent = count;
+            if (btn) btn.disabled = count === 0;
+
+            // Sync checkboxes currently visible
+            document.querySelectorAll('.mass-select-checkbox').forEach(cb => {
+                const url = decodeURIComponent(cb.getAttribute('data-url'));
+                cb.checked = selectedUrls.has(url);
+            });
+        }
+
+        async function deleteBulk() {
+            const count = selectedUrls.size;
+            if (count === 0) return;
+
+            if (!confirm(`Hapus ${count} produk terpilih secara massal? Tindakan ini tidak bisa dibatalkan.`)) {
+                return;
+            }
+
+            const urls = Array.from(selectedUrls);
+            const res = await api('product/delete_bulk', 'POST', { urls });
+
+            if (res) {
+                showToast(`${res.deleted_count} produk berhasil dihapus secara massal!`, 'success');
+                selectedUrls.clear();
+                allProducts = allProducts.filter(p => !urls.includes(p.url));
+                renderProducts();
+                updateSelectionUI();
+                const s = await api('status');
+                if (s) updateStatus(s);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // DELETE PRODUCT
         // ═══════════════════════════════════════════════════════════
         async function deleteProduct(encodedUrl, title) {
             event.stopPropagation();
             const url = decodeURIComponent(encodedUrl);
 
-            if (!confirm(`Delete product "${title}"?`)) {
+            if (!confirm(`Hapus produk "${title}"?`)) {
                 return;
             }
 
             const res = await api('product/delete', 'POST', { url });
             if (res) {
-                showToast('Product deleted!', 'success');
+                showToast('Produk dihapus!', 'success');
                 // Remove from local array and re-render
                 allProducts = allProducts.filter(p => p.url !== url);
+                selectedUrls.delete(url);
                 renderProducts();
+                updateSelectionUI();
             }
         }
 
