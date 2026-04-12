@@ -274,10 +274,14 @@ def api_toggle_all_products():
 @app.route("/api/product/update", methods=["POST"])
 def api_update_product():
     data = request.json or {}
-    url = data.get("url", "")
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL is required"}), 400
+        
     products = engine.load_products()
+    updated = False
     for p in products:
-        if p.get("url") == url:
+        if p.get("url", "").strip() == url:
             if "title" in data:
                 p["title"] = data["title"]
             if "price" in data:
@@ -285,9 +289,30 @@ def api_update_product():
                     p["price"] = float(data["price"])
                 except:
                     pass
-            engine.save_products(products)
-            return jsonify({"ok": True})
+            updated = True
+            break
+            
+    if updated:
+        engine.save_products(products)
+        return jsonify({"ok": True})
+        
     return jsonify({"error": "Product not found"}), 404
+
+@app.route("/api/product/delete_bulk", methods=["POST"])
+def api_delete_bulk():
+    data = request.json or {}
+    urls = data.get("urls", [])
+    if not isinstance(urls, list) or not urls:
+        return jsonify({"error": "List of URLs is required"}), 400
+        
+    urls_set = set(u.strip() for u in urls if u)
+    products = engine.load_products()
+    
+    original_count = len(products)
+    new_products = [p for p in products if p.get("url", "").strip() not in urls_set]
+    
+    engine.save_products(new_products)
+    return jsonify({"ok": True, "deleted_count": original_count - len(new_products)})
 
 
 @app.route("/api/product/delete", methods=["POST"])

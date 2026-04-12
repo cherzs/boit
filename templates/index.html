@@ -1104,7 +1104,7 @@
 <body>
     <div class="toast-container" id="toasts"></div>
 
-        <!-- PRODUCT DETAIL MODAL -->
+    <!-- PRODUCT DETAIL MODAL -->
     <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
         <div class="modal" onclick="event.stopPropagation()">
             <button class="modal-close"
@@ -1117,7 +1117,8 @@
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin-bottom:1rem">
                 <div class="modal-field form-group" style="margin-bottom: 0;">
                     <label>Price ($)</label>
-                    <input type="number" step="0.01" id="modalPriceInput" style="color:var(--green); font-weight:700; font-size:1.1rem; width:100%;" autocomplete="off">
+                    <input type="number" step="0.01" id="modalPriceInput"
+                        style="color:var(--green); font-weight:700; font-size:1.1rem; width:100%;" autocomplete="off">
                 </div>
                 <div class="modal-field">
                     <div class="label">Item Type</div>
@@ -1158,10 +1159,13 @@
                 <div class="label">Scraped At</div>
                 <div class="value" id="modalScraped">-</div>
             </div>
-                        <a class="modal-link" id="modalLink" href="#" target="_blank">Open on ZeusX &rarr;</a>
-            <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 1rem;">
-                <button class="btn btn-outline" style="width:auto; margin:0;" onclick="document.getElementById('modalOverlay').classList.remove('active')">Close</button>
-                <button class="btn btn-success" style="width:auto; margin:0;" onclick="saveProductFromModal()">Save Changes</button>
+            <a class="modal-link" id="modalLink" href="#" target="_blank">Open on ZeusX &rarr;</a>
+            <div
+                style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button class="btn btn-outline" style="width:auto; margin:0;"
+                    onclick="document.getElementById('modalOverlay').classList.remove('active')">Close</button>
+                <button class="btn btn-success" style="width:auto; margin:0;" onclick="saveProductFromModal()">Save
+                    Changes</button>
             </div>
         </div>
     </div>
@@ -1295,9 +1299,16 @@
                         <!-- Right: Controls -->
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             <button class="btn btn-outline" onclick="toggleAllProducts(true)"
-                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Select All</button>
+                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Enable All</button>
                             <button class="btn btn-outline" onclick="toggleAllProducts(false)"
-                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Deselect</button>
+                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Disable All</button>
+                            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 5px;"></div>
+                            <button class="btn btn-outline" onclick="toggleSelectionAll(true)"
+                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Pilih Semua</button>
+                            <button class="btn btn-danger" id="bulkDeleteBtn" onclick="deleteBulk()" disabled
+                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Hapus Massal (<span
+                                    id="selectedCount">0</span>)</button>
+                            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 5px;"></div>
                             <button class="btn btn-success" id="startBtn" onclick="doStart()"
                                 style="padding:0.4rem 1rem; width:auto;">Start Bot</button>
                             <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled
@@ -1487,7 +1498,7 @@
 
             const enabledCount = allProducts.filter(p => p.enabled).length;
             const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
-            
+
             // Bounds check current page just in case filtering shrank the page count
             if (currentPage > totalPages) currentPage = totalPages;
             if (currentPage < 1) currentPage = 1;
@@ -1516,10 +1527,16 @@
                         ? `<img src="${firstImage}" class="product-card-image" alt="" loading="lazy" onerror="this.parentElement.querySelector('.product-card-image-placeholder').style.display='flex'; this.style.display='none'; console.log('Image failed:', '${firstImage}');"><div class="product-card-image-placeholder" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:0;">[No Image]</div>`
                         : `<div class="product-card-image-placeholder">[No Image]</div>`
                     }
-                        <div class="product-card-checkbox" onclick="event.stopPropagation()">
+                        <div class="product-card-checkbox" onclick="event.stopPropagation()" style="left: 10px; display: flex; gap: 8px; align-items: center;">
                             <input type="checkbox" ${p.enabled ? 'checked' : ''}
                                    onchange="toggleProduct('${encodeURIComponent(p.url)}')"
-                                   title="Enable/disable re-listing">
+                                   title="Aktifkan Re-listing" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--accent);">
+                            <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2);"></div>
+                            <input type="checkbox" class="mass-select-checkbox" 
+                                   data-url="${encodeURIComponent(p.url)}"
+                                   ${selectedUrls.has(p.url) ? 'checked' : ''}
+                                   onchange="toggleSelection('${encodeURIComponent(p.url)}')"
+                                   title="Pilih untuk Hapus Massal" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--red);">
                         </div>
                         <div class="product-card-badge">${p.image_count || 0} images</div>
                     </div>
@@ -1601,7 +1618,7 @@
             if (s) updateStatus(s);
         }
 
-                async function saveProductFromModal() {
+        async function saveProductFromModal() {
             const url = document.getElementById('modalProductUrl').value;
             const newTitle = document.getElementById('modalTitleInput').value;
             const newPrice = document.getElementById('modalPriceInput').value;
@@ -1642,7 +1659,7 @@
         // ═══════════════════════════════════════════════════════════
         // PRODUCT DETAIL MODAL
         // ═══════════════════════════════════════════════════════════
-                async function showProductDetail(encodedUrl) {
+        async function showProductDetail(encodedUrl) {
             const url = decodeURIComponent(encodedUrl);
             const p = await api(`product/detail?url=${encodeURIComponent(url)}`);
             if (!p) return;
