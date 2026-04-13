@@ -1241,6 +1241,13 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
         for _ in range(3):
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             _random_delay(0.5, 1)
+
+        # Cek apakah halaman ini kosong (tidak ada listing sama sekali)
+        # Jika kosong, berarti kita sudah melewati halaman terakhir
+        any_listing = page.locator("[class*='listing'], [class*='item'], [class*='card'], [class*='offer-card']").first
+        if not any_listing.is_visible():
+            _log(log_cb, f"   Halaman {page_num} kosong. Produk tidak ditemukan di semua halaman.")
+            return False
         
         # Coba cari dengan title lengkap
         product_row = page.locator(f"text='{escaped_title}'").first
