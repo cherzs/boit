@@ -1199,7 +1199,12 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     Handles CAPTCHA if detected.
     """
     title = product.get("title", "")
+    url = product.get("url", "")
+    slug = url.rstrip('/').split('/')[-1] if url else ""
+    
     _log(log_cb, f"Deleting: {title}")
+    if slug:
+        _log(log_cb, f"   (Using slug: {slug} for accurate matching)")
 
     try:
         page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=30_000)
@@ -1249,13 +1254,24 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
             _log(log_cb, f"   Halaman {page_num} kosong. Produk tidak ditemukan di semua halaman.")
             return False
         
-        # Coba cari dengan title lengkap
-        product_row = page.locator(f"text='{escaped_title}'").first
+        # 1. Coba cari berdasarkan URL/Slug (Metode paling akurat)
+        if slug:
+            # Cari link yang mengandung slug produk
+            product_row = page.locator(f"a[href*='{slug}']").first
+            if product_row.is_visible():
+                _log(log_cb, f"   Found product via URL slug on page {page_num}")
+                break
+
+        # 2. Coba cari dengan title lengkap (Case-insensitive fallback)
+        product_row = page.get_by_text(title, exact=True).first
+        if not product_row.is_visible():
+            product_row = page.locator(f"text='{escaped_title}'").first
+            
         if product_row.is_visible():
-            _log(log_cb, f"   Found product on page {page_num}")
+            _log(log_cb, f"   Found product via title on page {page_num}")
             break
             
-        # Coba cari dengan short title
+        # 3. Coba cari dengan short title
         if short_title:
             product_row = page.get_by_text(short_title, exact=False).first
             if product_row.is_visible():
@@ -1264,7 +1280,17 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
         
         # Produk tidak ditemukan di halaman ini, lanjut ke halaman berikutnya
         if page_num < max_pages:
-            _log(log_cb, f"   Not found on page {page_num}, checking page {page_num + 1}...")
+            # Diagnostic: Log apa yang dilihat bot di halaman ini
+            try:
+                # Cari elemen-elemen yang mungkin berisi judul
+                possible_titles = page.locator("h5, [class*='title'], [class*='name'], a[href*='/game/']").all_inner_texts()
+                sample = [t.strip() for t in possible_titles if len(t.strip()) > 5][:3]
+                if sample:
+                    _log(log_cb, f"   Halaman {page_num} tidak ada '{slug}'. Isinya: {sample}")
+            except:
+                pass
+                
+            _log(log_cb, f"   Checking page {page_num + 1}...")
             continue
         else:
             # Sudah halaman terakhir, produk tidak ditemukan
