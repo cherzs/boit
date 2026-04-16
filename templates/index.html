@@ -1268,6 +1268,20 @@
                         Scan Store
                     </button>
 
+                    <!-- DUPLICATE WARNING -->
+                    <div id="duplicateWarning" style="display:none; margin-top:1.5rem; padding:1rem; background:rgba(255,165,0,0.1); border:1px solid var(--amber); border-radius:var(--radius-sm);">
+                        <div style="display:flex; align-items:center; gap:0.6rem; color:var(--amber); font-weight:700; margin-bottom:0.5rem;">
+                            <span style="font-size:1.2rem;">⚠️</span>
+                            DUPLICATE PRODUCTS DETECTED
+                        </div>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.8rem;">
+                            Beberapa produk memiliki nama (title) yang sama. ZeusX mungkin akan memblokir atau menghapus produk jika terlalu banyak duplicate.
+                        </p>
+                        <div id="duplicateList" style="font-size:0.85rem; color:var(--amber); display:flex; flex-direction:column; gap:0.3rem;">
+                            <!-- List names here -->
+                        </div>
+                    </div>
+
                     <div id="scanMessage" style="margin-top:1rem;"></div>
                 </div>
 
@@ -1443,6 +1457,16 @@
             // Enabled info
             document.getElementById('enabledInfo').textContent =
                 `${s.enabled_count || 0} of ${s.product_count || 0} enabled`;
+
+            // Duplicate warning
+            const dupWarning = document.getElementById('duplicateWarning');
+            const dupList = document.getElementById('duplicateList');
+            if (s.duplicate_titles && s.duplicate_titles.length > 0) {
+                dupWarning.style.display = 'block';
+                dupList.innerHTML = s.duplicate_titles.map(t => `<div style="display:flex; align-items:flex-start; gap:0.5rem;">• <span>${escapeHtml(t)}</span></div>`).join('');
+            } else {
+                dupWarning.style.display = 'none';
+            }
 
             // Update product count in case products were updated
             if (s.product_count !== allProducts.length) {

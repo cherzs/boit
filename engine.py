@@ -104,6 +104,17 @@ def save_products(products: list):
         json.dump(products, f, indent=4, ensure_ascii=False)
 
 
+def get_duplicate_titles(products: list) -> list:
+    """Find product titles that appear more than once."""
+    titles = [p.get("title", "").strip() for p in products if p.get("title")]
+    counts = {}
+    for t in titles:
+        counts[t] = counts.get(t, 0) + 1
+    
+    duplicates = [t for t, count in counts.items() if count > 1]
+    return sorted(duplicates)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SESSION MANAGEMENT
 # ═══════════════════════════════════════════════════════════════════════════

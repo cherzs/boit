@@ -57,11 +57,14 @@ def _build_status() -> dict:
     products = engine.load_products()
     cfg = engine.load_config()
     enabled_count = sum(1 for p in products if p.get("enabled", True))
+    duplicate_titles = engine.get_duplicate_titles(products)
+    
     return {
         "running": bot_state["running"],
         "has_session": engine.has_session(),
         "product_count": len(products),
         "enabled_count": enabled_count,
+        "duplicate_titles": duplicate_titles,
         "cycle_count": bot_state["cycle_count"],
         "last_success": bot_state["last_success"],
         "settings": {
