@@ -2077,6 +2077,7 @@ def run_once(
         _log(log_cb, "✅ Ready! Starting re-listing process...")
         
         max_retries = 3
+        results: list[dict] = []
 
         try:
             for idx, product in enumerate(enabled):
@@ -2084,11 +2085,14 @@ def run_once(
                     _log(log_cb, "Run stopped by user.")
                     break
 
-                _log(log_cb, f"── Re-listing {idx+1}/{len(enabled)}: {product.get('title', '?')[:60]} ──")
+                title = product.get('title', '?')
+                _log(log_cb, f"── Re-listing {idx+1}/{len(enabled)}: {title[:60]} ──")
 
                 success = False
+                fail_reason = "Unknown error"
                 for attempt in range(1, max_retries + 1):
                     if stop_event.is_set():
+                        fail_reason = "Stopped by user"
                         break
 
                     try:
@@ -2096,6 +2100,7 @@ def run_once(
                         deleted = delete_listing(page, product, log_cb)
                         if not deleted:
                             _log(log_cb, "   ❌ Delete failed. Batal membuat listing baru untuk menghindari duplikat.")
+                            fail_reason = "Delete listing gagal"
                             break
                         
                         _log(log_cb, "   ✅ Delete successful! Preparing to create new listing...")
@@ -2114,8 +2119,11 @@ def run_once(
                             save_products(products)
                             _log(log_cb, "✅ Product re-listed successfully!")
                             break
+                        else:
+                            fail_reason = "Create listing gagal"
 
                     except Exception as e:
+                        fail_reason = str(e)
                         _log(log_cb, f"   ERROR: Attempt {attempt}/{max_retries}: {e}")
                         if attempt < max_retries:
                             wait = 10 * attempt
@@ -2124,6 +2132,12 @@ def run_once(
 
                 if not success and not stop_event.is_set():
                     _log(log_cb, "   ❌ All retries failed, moving to next product")
+
+                results.append({
+                    "title": title,
+                    "success": success,
+                    "reason": fail_reason if not success else "",
+                })
 
                 # Refresh session after each product
                 save_session(context)
@@ -2138,6 +2152,7 @@ def run_once(
             browser.close()
             _log(log_cb, "Browser closed.")
 
+    return results
 
 
 def run_loop(

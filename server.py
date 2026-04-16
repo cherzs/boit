@@ -198,21 +198,23 @@ def api_start():
     bot_state["running"] = True
     bot_state["stop_event"].clear()
 
-    def on_done():
-        bot_state["running"] = False
-        socketio.emit("status_update", _build_status())
-        # Emit event so frontend can show a notification
-        socketio.emit("relist_complete", True)
-
     def run_wrapper():
+        results = []
         try:
-            engine.run_once(
+            results = engine.run_once(
                 headless=cfg.get("headless", False),
                 log_cb=log_callback,
                 stop_event=bot_state["stop_event"],
-            )
+            ) or []
         finally:
-            on_done()
+            bot_state["running"] = False
+            socketio.emit("status_update", _build_status())
+            socketio.emit("relist_complete", {
+                "results": results,
+                "total": len(results),
+                "success": sum(1 for r in results if r.get("success")),
+                "failed": sum(1 for r in results if not r.get("success")),
+            })
 
     t = threading.Thread(target=run_wrapper, daemon=True)
     t.start()

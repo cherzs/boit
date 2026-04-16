@@ -1290,6 +1290,26 @@
                         </button>
                     </div>
 
+                    <!-- RELIST RESULTS -->
+                    <div id="relistResults"
+                        style="display:none; margin-top:1.5rem; padding:1rem; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius-sm);">
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.8rem;">
+                            <div style="display:flex; align-items:center; gap:0.6rem; font-weight:700; font-size:0.95rem; color:var(--text-primary);">
+                                <span>📋</span> Hasil Re-listing Terakhir
+                            </div>
+                            <div style="display:flex; gap:0.8rem; font-size:0.8rem;">
+                                <span id="relistSuccessCount"
+                                    style="color:var(--green); font-weight:600;">✅ 0 Berhasil</span>
+                                <span id="relistFailCount"
+                                    style="color:var(--red); font-weight:600;">❌ 0 Gagal</span>
+                            </div>
+                        </div>
+                        <div id="relistResultList"
+                            style="display:flex; flex-direction:column; gap:0.35rem; max-height:260px; overflow-y:auto;">
+                        </div>
+                    </div>
+
                     <div id="scanMessage" style="margin-top:1rem;"></div>
                 </div>
 
@@ -1383,9 +1403,28 @@
             loadProducts();
         });
 
-        socket.on('relist_complete', () => {
+        socket.on('relist_complete', (data) => {
             showToast('Re-listing run complete!', 'success');
-            alert("Re-listing complete! All enabled products have been processed.");
+
+            const results = (data && data.results) ? data.results : [];
+            const successCount = (data && data.success != null) ? data.success : results.filter(r => r.success).length;
+            const failCount = (data && data.failed != null) ? data.failed : results.filter(r => !r.success).length;
+
+            document.getElementById('relistSuccessCount').textContent = `✅ ${successCount} Berhasil`;
+            document.getElementById('relistFailCount').textContent = `❌ ${failCount} Gagal`;
+
+            const list = document.getElementById('relistResultList');
+            list.innerHTML = results.map(r => `
+                <div style="display:flex; align-items:flex-start; gap:0.5rem; padding:0.4rem 0.6rem; border-radius:4px; background:${r.success ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)'}; border-left:3px solid ${r.success ? 'var(--green)' : 'var(--red)'};">
+                    <span style="flex-shrink:0; font-size:0.85rem;">${r.success ? '✅' : '❌'}</span>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</div>
+                        ${!r.success && r.reason ? `<div style="font-size:0.75rem; color:var(--red); margin-top:1px;">${escapeHtml(r.reason)}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('relistResults').style.display = results.length > 0 ? 'block' : 'none';
         });
 
         // ═══════════════════════════════════════════════════════════
