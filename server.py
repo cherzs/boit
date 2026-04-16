@@ -318,6 +318,14 @@ def api_delete_bulk():
     return jsonify({"ok": True, "deleted_count": original_count - len(new_products)})
 
 
+@app.route("/api/product/clean_duplicates", methods=["POST"])
+def api_clean_duplicates():
+    removed_count = engine.remove_duplicate_products()
+    socketio.emit("products_updated", True)
+    socketio.emit("status_update", _build_status())
+    return jsonify({"ok": True, "removed_count": removed_count})
+
+
 @app.route("/api/product/delete", methods=["POST"])
 def api_delete_product():
     data = request.json or {}

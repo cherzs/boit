@@ -115,6 +115,36 @@ def get_duplicate_titles(products: list) -> list:
     return sorted(duplicates)
 
 
+def remove_duplicate_products() -> int:
+    """
+    Clean products.json by keeping only the first occurrence of each title.
+    Returns the number of products removed.
+    """
+    products = load_products()
+    if not products:
+        return 0
+        
+    original_count = len(products)
+    cleaned = []
+    seen_titles = set()
+    
+    for p in products:
+        title = p.get("title", "").strip()
+        if not title:
+            cleaned.append(p)
+            continue
+            
+        if title not in seen_titles:
+            seen_titles.add(title)
+            cleaned.append(p)
+    
+    removed_count = original_count - len(cleaned)
+    if removed_count > 0:
+        save_products(cleaned)
+        
+    return removed_count
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SESSION MANAGEMENT
 # ═══════════════════════════════════════════════════════════════════════════
