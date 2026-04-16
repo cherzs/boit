@@ -668,6 +668,7 @@ def scrape_my_listings(page, log_cb=None) -> list:
     # Collect all products from all pages
     all_product_links = []
     seen_urls = set()
+    seen_titles = set()
     max_pages = 50  # Safety limit
     
     for page_num in range(1, max_pages + 1):
@@ -683,10 +684,21 @@ def scrape_my_listings(page, log_cb=None) -> list:
         new_links = 0
         
         for link in page_links:
-            if link["url"] not in seen_urls:
-                seen_urls.add(link["url"])
+            url = link["url"]
+            title = (link.get("title") or "Unknown Title").strip()
+            
+            if url not in seen_urls:
+                seen_urls.add(url)
                 all_product_links.append(link)
-                new_links += 1
+                
+                # Check for duplicate title
+                if title in seen_titles:
+                    _log(log_cb, f"      [DUP TITLE] {title}")
+                else:
+                    seen_titles.add(title)
+                    new_links += 1
+            else:
+                _log(log_cb, f"      [DUP URL] {url}")
         
         _log(log_cb, f"    Found {new_links} new product(s) on this page")
         
@@ -718,6 +730,7 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
     # Collect all products from all pages
     all_product_links = []
     seen_urls = set()
+    seen_titles = set()
     max_pages = 50  # Safety limit
     
     for page_num in range(1, max_pages + 1):
@@ -737,16 +750,22 @@ def scrape_store_page(page, store_url: str, log_cb=None) -> list:
         new_links = 0
         for link in page_links:
             url = link["url"]
-            title = link.get("title", "Unknown Title")
+            title = (link.get("title") or "Unknown Title").strip()
             url_slug = url.rstrip('/').split('/')[-1]
             
             if url not in seen_urls:
                 seen_urls.add(url)
                 all_product_links.append(link)
-                new_links += 1
-                _log(log_cb, f"      [NEW] {title} ({url_slug})")
+                
+                # Check for duplicate title
+                if title in seen_titles:
+                    _log(log_cb, f"      [DUP TITLE] {title} ({url_slug})")
+                else:
+                    seen_titles.add(title)
+                    new_links += 1
+                    _log(log_cb, f"      [NEW] {title} ({url_slug})")
             else:
-                _log(log_cb, f"      [DUP] {title} ({url_slug})")
+                _log(log_cb, f"      [DUP URL] {title} ({url_slug})")
         
         _log(log_cb, f"    Summary: Found {new_links} new product(s) on page {page_num}")
         
