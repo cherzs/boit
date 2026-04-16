@@ -1180,6 +1180,7 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
             # Load existing products to avoid duplicates
             existing_products = load_products()
             existing_urls = {p.get("url") for p in existing_products if p.get("url")}
+            existing_titles = {p.get("title", "").strip() for p in existing_products if p.get("title")}
             
             _log(log_cb, f"Found {len(product_links)} products on page. Checking for new items...")
 
@@ -1187,19 +1188,29 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
             newly_scanned = []
             for i, link in enumerate(product_links):
                 url = link["url"]
+                title = (link.get("title") or "Unknown Title").strip()
                 
-                # Validation: Skip if already exists
+                # Validation: Skip if already exists by URL
                 if url in existing_urls:
                     _log(log_cb, f"   [SKIP] {i+1}/{len(product_links)} Already exists: {url}")
                     continue
 
                 _log(log_cb, f"Scraping product {i+1}/{len(product_links)}...")
+                
+                # Extra: Warning if title already exists elsewhere
+                if title in existing_titles:
+                    _log(log_cb, f"   ⚠️  [DUP TITLE] This title already exists in your list: {title}")
+
                 detail = scrape_product_detail(page, url, log_cb)
                 if detail and detail.get("title"):
                     # Mark as enabled for re-listing by default
                     detail["enabled"] = True
                     detail["last_relisted"] = None
                     newly_scanned.append(detail)
+                    
+                    # Update titles set for current scan session
+                    existing_titles.add(detail["title"].strip())
+                    
                 _random_delay(1, 3)
 
             # Combine and Save to disk
