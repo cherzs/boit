@@ -1298,12 +1298,24 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
 
     # Cari produk by name di /my-listing (navigasi via ?page=X)
     _log(log_cb, "   Searching for product in My Listing...")
-    
-    escaped_title = title.replace("'", "\\'")
-    short_title = title[:25].strip()
+
     product_row = None
     max_pages = 50  # Maksimal 50 halaman
-    
+
+    def _slug_matches_href(href: str) -> bool:
+        """
+        Pastikan href benar-benar merujuk ke slug yang tepat — bukan sekadar
+        substring dari slug yang lebih panjang.
+        Contoh slug = 'product-a', href = '/game/product-a-deluxe' → False
+                                   href = '/game/product-a'         → True
+                                   href = '/game/product-a/'        → True
+        """
+        if not href or not slug:
+            return False
+        # Normalize: buang trailing slash untuk perbandingan
+        norm = href.rstrip("/")
+        return norm.endswith(f"/{slug}")
+
     for page_num in range(1, max_pages + 1):
         # Kalau bukan halaman 1, navigasi ke URL dengan ?page=X
         if page_num > 1:
@@ -1312,59 +1324,66 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
                 _random_delay(1, 2)
             except:
                 break
-        
+
         # Scroll untuk load semua produk di halaman ini
         for _ in range(3):
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             _random_delay(0.5, 1)
 
         # Cek apakah halaman ini kosong (tidak ada listing sama sekali)
-        # Jika kosong, berarti kita sudah melewati halaman terakhir
         any_listing = page.locator("[class*='listing'], [class*='item'], [class*='card'], [class*='offer-card']").first
         if not any_listing.is_visible():
             _log(log_cb, f"   Halaman {page_num} kosong. Produk tidak ditemukan di semua halaman.")
             return False
-        
-        # 1. Coba cari berdasarkan URL/Slug (Metode paling akurat)
+
+        # ── Prioritas 1: Exact slug match via href ──────────────────────────
+        # Gunakan ends-with agar slug 'product-a' tidak cocok dengan
+        # 'product-a-deluxe'. Coba dua varian (dengan dan tanpa trailing /).
         if slug:
-            # Cari link yang mengandung slug produk
-            product_row = page.locator(f"a[href*='{slug}']").first
-            if product_row.is_visible():
-                _log(log_cb, f"   Found product via URL slug on page {page_num}")
+            candidate = page.locator(f"a[href$='/{slug}'], a[href$='/{slug}/']").first
+            if candidate.is_visible():
+                href_val = candidate.get_attribute("href") or ""
+                if _slug_matches_href(href_val):
+                    _log(log_cb, f"   ✅ Found product via exact URL slug on page {page_num}")
+                    product_row = candidate
+                    break
+                else:
+                    _log(log_cb, f"   ⚠️  Slug selector hit but href mismatch: {href_val}")
+
+        # ── Prioritas 2: Exact full-title match ─────────────────────────────
+        # exact=True agar "Product A" tidak cocok dengan "Product A Deluxe"
+        candidate = page.get_by_text(title, exact=True).first
+        if candidate.is_visible():
+            # Cross-verify: pastikan link di sekitar elemen ini sesuai slug
+            if slug:
+                try:
+                    nearby_href = candidate.locator("xpath=ancestor-or-self::a").first.get_attribute("href") or ""
+                    if nearby_href and not _slug_matches_href(nearby_href):
+                        _log(log_cb, f"   ⚠️  Title match ditemukan tapi URL tidak cocok ({nearby_href}), skip.")
+                        candidate = None
+                except Exception:
+                    pass  # Tidak ada anchor di sekitarnya, tetap pakai match ini
+            if candidate is not None and candidate.is_visible():
+                _log(log_cb, f"   ✅ Found product via exact title on page {page_num}")
+                product_row = candidate
                 break
 
-        # 2. Coba cari dengan title lengkap (Case-insensitive fallback)
-        product_row = page.get_by_text(title, exact=True).first
-        if not product_row.is_visible():
-            product_row = page.locator(f"text='{escaped_title}'").first
-            
-        if product_row.is_visible():
-            _log(log_cb, f"   Found product via title on page {page_num}")
-            break
-            
-        # 3. Coba cari dengan short title
-        if short_title:
-            product_row = page.get_by_text(short_title, exact=False).first
-            if product_row.is_visible():
-                _log(log_cb, f"   Found product (short title) on page {page_num}")
-                break
-        
-        # Produk tidak ditemukan di halaman ini, lanjut ke halaman berikutnya
+        # ── TIDAK ada fallback partial/short-title ──────────────────────────
+        # Short-title dengan exact=False terlalu berisiko menghapus produk lain
+        # yang memiliki awalan nama yang sama. Kita skip ke halaman berikutnya.
+
+        # Diagnostic log
         if page_num < max_pages:
-            # Diagnostic: Log apa yang dilihat bot di halaman ini
             try:
-                # Cari elemen-elemen yang mungkin berisi judul
                 possible_titles = page.locator("h5, [class*='title'], [class*='name'], a[href*='/game/']").all_inner_texts()
                 sample = [t.strip() for t in possible_titles if len(t.strip()) > 5][:3]
                 if sample:
-                    _log(log_cb, f"   Halaman {page_num} tidak ada '{slug}'. Isinya: {sample}")
-            except:
+                    _log(log_cb, f"   Halaman {page_num} tidak ada '{slug or title[:30]}'. Contoh isi: {sample}")
+            except Exception:
                 pass
-                
             _log(log_cb, f"   Checking page {page_num + 1}...")
             continue
         else:
-            # Sudah halaman terakhir, produk tidak ditemukan
             _log(log_cb, f"   WARNING: Could not find listing '{title[:50]}' on any page")
             return False
 
