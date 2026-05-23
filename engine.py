@@ -63,7 +63,7 @@ def _random_delay(lo: float = 0.5, hi: float = 2.0):
 
 def _typing_delay() -> int:
     """Per-keystroke delay in ms for page.type()."""
-    return random.randint(50, 150)
+    return random.randint(20, 50)
 
 
 def _interruptible_sleep(seconds: int, stop_event: threading.Event):
@@ -1562,6 +1562,12 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
 
     _random_delay(1, 2)
 
+    # Check for CAPTCHA after navigating to create page
+    if _detect_captcha(page):
+        _log(log_cb, "   🤖 CAPTCHA detected on create listing page!")
+        if not _wait_for_captcha_solved(page, log_cb):
+            return False
+
     # --- Step 1: Select Category → "In-Game Items" ---
     try:
         category_btn = page.locator("text='In-Game Items'").first
@@ -1820,7 +1826,14 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
         submit_btn.wait_for(timeout=5_000)
         submit_btn.click()
         _log(log_cb, "   Form submitted")
-        _random_delay(3, 5)
+        _random_delay(2, 3)
+
+        # Check for CAPTCHA after submit (some sites show captcha on form submit)
+        if _detect_captcha(page):
+            _log(log_cb, "   🤖 CAPTCHA detected after submit! Please solve it...")
+            if not _wait_for_captcha_solved(page, log_cb):
+                return False
+            _random_delay(2, 3)
 
         # Check for success or error
         try:
