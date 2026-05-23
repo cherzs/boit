@@ -71,6 +71,7 @@ def _build_status() -> dict:
             "headless": cfg.get("headless", False),
             "seller_url": cfg.get("seller_url", ""),
             "interval_minutes": cfg.get("interval_minutes", 10),
+            "use_manual_browser": cfg.get("use_manual_browser", False),
         },
     }
 
@@ -205,7 +206,6 @@ def api_start():
                 headless=cfg.get("headless", False),
                 log_cb=log_callback,
                 stop_event=bot_state["stop_event"],
-                use_manual_browser=cfg.get("use_manual_browser", False),
             ) or []
         finally:
             bot_state["running"] = False

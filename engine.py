@@ -17,6 +17,7 @@ import random
 import hashlib
 import threading
 import webbrowser
+import subprocess
 import requests
 from datetime import datetime
 from pathlib import Path
@@ -2086,6 +2087,55 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
 
 CDP_PORT = 9222
 
+CHROME_PATHS = [
+    # Windows
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    # Mac
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    # Linux
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+]
+
+
+def _find_chrome() -> str:
+    for path in CHROME_PATHS:
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def _launch_chrome_debug(log_cb=None) -> bool:
+    """
+    Launch Chrome with remote debugging port so bot can connect via CDP.
+    Returns True if launched successfully.
+    """
+    chrome = _find_chrome()
+    if not chrome:
+        _log(log_cb, "❌ Chrome tidak ditemukan di sistem")
+        return False
+
+    user_data = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chrome_profile")
+    os.makedirs(user_data, exist_ok=True)
+
+    cmd = [
+        chrome,
+        f"--remote-debugging-port={CDP_PORT}",
+        f"--user-data-dir={user_data}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        BASE_URL,
+    ]
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        _log(log_cb, f"✅ Chrome diluncurkan dengan debug port {CDP_PORT}")
+        return True
+    except Exception as e:
+        _log(log_cb, f"❌ Gagal launch Chrome: {e}")
+        return False
+
 
 def _try_connect_cdp(pw, log_cb=None):
     """
@@ -2113,7 +2163,6 @@ def run_once(
     headless: bool = False,
     log_cb=None,
     stop_event: threading.Event = None,
-    use_manual_browser: bool = False,
 ):
     """
     Run once: tries to connect to existing Chrome via CDP first (new tab),
@@ -2147,21 +2196,34 @@ def run_once(
         using_cdp = browser is not None
 
         if not using_cdp:
-            # Fallback: launch new browser
-            _log(log_cb, "⚠️  Chrome tidak ditemukan di port 9222, membuka browser baru...")
-            _log(log_cb, f"   Tips: Buka Chrome dulu dengan:")
-            _log(log_cb, f'   chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\\chrome-bot"')
-            browser = pw.chromium.launch(headless=False, channel="chrome")
-            w = random.randint(1280, 1920)
-            h = random.randint(800, 1080)
-            kwargs = {"viewport": {"width": w, "height": h}}
-            if session_valid:
-                kwargs["storage_state"] = AUTH_FILE
-                _log(log_cb, "✅ Using saved session")
-            context = browser.new_context(**kwargs)
-            page = context.new_page()
-            if HAS_STEALTH:
-                stealth_sync(page)
+            # Chrome belum buka dengan debug port — launch otomatis lalu connect
+            _log(log_cb, "⚠️  Chrome belum buka di port 9222, meluncurkan Chrome...")
+            launched = _launch_chrome_debug(log_cb)
+            if launched:
+                # Tunggu Chrome siap menerima koneksi CDP
+                _log(log_cb, "   Menunggu Chrome siap...")
+                for _ in range(10):
+                    time.sleep(1)
+                    browser, context, page = _try_connect_cdp(pw, log_cb)
+                    if browser is not None:
+                        using_cdp = True
+                        _log(log_cb, "✅ Terhubung ke Chrome!")
+                        break
+
+            if not using_cdp:
+                # Final fallback: Playwright launch
+                _log(log_cb, "⚠️  Fallback: membuka browser via Playwright...")
+                browser = pw.chromium.launch(headless=False, channel="chrome")
+                w = random.randint(1280, 1920)
+                h = random.randint(800, 1080)
+                kwargs = {"viewport": {"width": w, "height": h}}
+                if session_valid:
+                    kwargs["storage_state"] = AUTH_FILE
+                    _log(log_cb, "✅ Using saved session")
+                context = browser.new_context(**kwargs)
+                page = context.new_page()
+                if HAS_STEALTH:
+                    stealth_sync(page)
 
         # If need login, open login page and wait
         if need_login:
@@ -2170,7 +2232,7 @@ def run_once(
 
             if not _wait_for_login_in_browser(page, log_cb, stop_event):
                 _log(log_cb, "❌ Login failed or cancelled")
-                if not use_manual_browser:
+                if not using_cdp:
                     browser.close()
                 return
 
