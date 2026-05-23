@@ -2089,46 +2089,23 @@ CDP_PORT = 9222
 
 def _try_connect_cdp(pw, log_cb=None):
     """
-    Try to connect to a manually-opened Chrome via CDP (remote debugging).
-    Reuses the existing tab that has zeusx.com open.
-    Returns (browser, context, page) or (None, None, None) if not available.
+    Connect to existing Chrome via CDP and open a NEW TAB in it.
+    Returns (browser, context, page) or (None, None, None) if Chrome not available.
     """
     try:
         browser = pw.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
-
-        # Kumpulkan semua pages dari semua contexts
-        all_pages = []
-        for ctx in browser.contexts:
-            all_pages.extend(ctx.pages)
-
-        if not all_pages:
-            _log(log_cb, "⚠️ Tidak ada tab terbuka di browser, membuka tab baru...")
-            context = browser.contexts[0] if browser.contexts else browser.new_context()
-            page = context.new_page()
-            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30_000)
-        else:
-            # Prioritaskan tab yang sudah buka zeusx.com
-            zeusx_page = None
-            for p in all_pages:
-                try:
-                    if BASE_URL.replace("https://", "").replace("http://", "") in p.url:
-                        zeusx_page = p
-                        break
-                except Exception:
-                    continue
-            page = zeusx_page or all_pages[0]
-            context = page.context
-            _log(log_cb, f"✅ Menggunakan tab: {page.url[:60]}")
-
+        context = browser.contexts[0] if browser.contexts else browser.new_context()
+        # Always open a new tab so we don't disturb what the user has open
+        page = context.new_page()
         if HAS_STEALTH:
             try:
                 stealth_sync(page)
             except Exception:
                 pass
-        _log(log_cb, f"✅ Terhubung ke browser manual (CDP port {CDP_PORT})")
+        _log(log_cb, f"✅ Terhubung ke Chrome — membuka tab baru")
         return browser, context, page
     except Exception as e:
-        _log(log_cb, f"   [CDP error] {e}")
+        _log(log_cb, f"   [CDP] Chrome tidak tersedia: {e}")
         return None, None, None
 
 
@@ -2139,26 +2116,20 @@ def run_once(
     use_manual_browser: bool = False,
 ):
     """
-    Manual run: Opens browser window (like login) and re-lists all products.
-    If session expired, will open login page for manual re-login.
-    If use_manual_browser=True, connect to existing Chrome via CDP instead of launching new one.
+    Run once: tries to connect to existing Chrome via CDP first (new tab),
+    falls back to launching a new browser if CDP is not available.
     """
     if stop_event is None:
         stop_event = threading.Event()
 
-    # Check if auth.json exists
     _log(log_cb, "="*50)
-    _log(log_cb, "BOT STARTING - Checking session...")
+    _log(log_cb, "BOT STARTING...")
     _log(log_cb, "="*50)
 
-    session_valid = False
-    need_login = False
-
-    if has_session():
-        session_valid = True
-    else:
+    session_valid = has_session()
+    need_login = not session_valid
+    if need_login:
         _log(log_cb, "⚠️ No session found - will need to login")
-        need_login = True
 
     products = load_products()
     enabled = [p for p in products if p.get("enabled", True)]
@@ -2170,50 +2141,27 @@ def run_once(
     _log(log_cb, f"Bot started - {len(enabled)} product(s) to re-list")
 
     with sync_playwright() as pw:
-        browser = None
-        context = None
-        page = None
+        # Always try CDP first — opens new tab in existing Chrome
+        _log(log_cb, f"🔌 Mencoba konek ke Chrome yang sudah buka (port {CDP_PORT})...")
+        browser, context, page = _try_connect_cdp(pw, log_cb)
+        using_cdp = browser is not None
 
-        if use_manual_browser:
-            _log(log_cb, f"🔌 Mencoba konek ke browser manual di port {CDP_PORT}...")
-            _log(log_cb, f"   Pastikan Chrome sudah dibuka dengan flag:")
-            _log(log_cb, f"   --remote-debugging-port={CDP_PORT}")
-            browser, context, page = _try_connect_cdp(pw, log_cb)
-            if browser is None:
-                _log(log_cb, "❌ Tidak bisa konek ke browser manual.")
-                _log(log_cb, f"   Buka Chrome dengan perintah berikut dulu:")
-                _log(log_cb, f'   chrome.exe --remote-debugging-port={CDP_PORT} --user-data-dir="C:\\chrome-bot"')
-                return
-        else:
-            # Launch browser automatically
-            _log(log_cb, "Opening browser window...")
+        if not using_cdp:
+            # Fallback: launch new browser
+            _log(log_cb, "⚠️  Chrome tidak ditemukan di port 9222, membuka browser baru...")
+            _log(log_cb, f"   Tips: Buka Chrome dulu dengan:")
+            _log(log_cb, f'   chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\\chrome-bot"')
             browser = pw.chromium.launch(headless=False, channel="chrome")
             w = random.randint(1280, 1920)
             h = random.randint(800, 1080)
             kwargs = {"viewport": {"width": w, "height": h}}
-            if session_valid and has_session():
+            if session_valid:
                 kwargs["storage_state"] = AUTH_FILE
                 _log(log_cb, "✅ Using saved session")
             context = browser.new_context(**kwargs)
             page = context.new_page()
             if HAS_STEALTH:
                 stealth_sync(page)
-
-            # Step 0: Open homepage first, wait for user to pass Cloudflare
-            _log(log_cb, "🌐 Membuka halaman utama untuk cek Cloudflare...")
-            try:
-                page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30_000)
-            except Exception:
-                pass
-
-            if _detect_cloudflare(page):
-                if not _wait_for_cloudflare_passed(page, log_cb, stop_event):
-                    _log(log_cb, "❌ Cloudflare tidak berhasil dilewati")
-                    browser.close()
-                    return
-            else:
-                _log(log_cb, "✅ Tidak ada Cloudflare, lanjut...")
-                _random_delay(1, 2)
 
         # If need login, open login page and wait
         if need_login:
@@ -2325,11 +2273,11 @@ def run_once(
             _log(log_cb, "✅ Manual run completed!")
             
         finally:
-            if not use_manual_browser:
+            if not using_cdp:
                 browser.close()
                 _log(log_cb, "Browser closed.")
             else:
-                _log(log_cb, "Browser manual dibiarkan terbuka.")
+                _log(log_cb, "Tab bot ditutup, Chrome tetap terbuka.")
 
     return results
 
