@@ -248,6 +248,8 @@ def api_settings():
         cfg["seller_url"] = data["seller_url"]
     if "interval_minutes" in data:
         cfg["interval_minutes"] = int(data["interval_minutes"])
+    if "use_manual_browser" in data:
+        cfg["use_manual_browser"] = bool(data["use_manual_browser"])
     engine.save_config(cfg)
     return jsonify({"ok": True, "settings": cfg})
 
