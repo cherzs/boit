@@ -2049,7 +2049,16 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
     _log(log_cb, "   ⚠️  Use Username/Password (NOT Google Login)")
     _log(log_cb, "   Google akan error 'This browser is not secure'")
     _log(log_cb, "   📝 Please enter your credentials manually and click Login")
-    
+    _log(log_cb, "   ⏱️  Bot memberi waktu 60 detik untuk mengisi form...")
+
+    # Grace period — beri user waktu isi form tanpa bot ganggu
+    for i in range(60, 0, -1):
+        if stop_event and stop_event.is_set():
+            return False
+        if i % 15 == 0:
+            _log(log_cb, f"   Silakan isi form login... ({i}s)")
+        time.sleep(1)
+
     # Check for CAPTCHA
     if _detect_captcha(page):
         _log(log_cb, "   🤖 CAPTCHA detected! Please solve it...")
