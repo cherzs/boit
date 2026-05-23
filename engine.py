@@ -641,6 +641,24 @@ def _wait_for_captcha_solved(page, log_cb=None, stop_event=None, timeout_seconds
     return False
 
 
+def _goto(page, url, log_cb=None, stop_event=None, timeout=30_000) -> bool:
+    """
+    Navigate to URL and automatically wait if Cloudflare blocks the page.
+    Returns True if navigation succeeded, False if stopped or timeout.
+    """
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+    except Exception:
+        pass
+
+    if _detect_cloudflare(page):
+        _log(log_cb, f"🛡️  Cloudflare muncul saat buka: {url}")
+        if not _wait_for_cloudflare_passed(page, log_cb, stop_event):
+            return False
+
+    return True
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # PRODUCT SCRAPING
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1333,9 +1351,7 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     if slug:
         _log(log_cb, f"   (Using slug: {slug} for accurate matching)")
 
-    try:
-        page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=30_000)
-    except PlaywrightTimeout:
+    if not _goto(page, f"{BASE_URL}/my-listing", log_cb, stop_event, timeout=30_000):
         _log(log_cb, "   WARNING: Could not load My Listing page")
         return False
 
@@ -1375,11 +1391,9 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     for page_num in range(1, max_pages + 1):
         # Kalau bukan halaman 1, navigasi ke URL dengan ?page=X
         if page_num > 1:
-            try:
-                page.goto(f"{BASE_URL}/my-listing?page={page_num}", wait_until="domcontentloaded", timeout=15_000)
-                _random_delay(1, 2)
-            except:
+            if not _goto(page, f"{BASE_URL}/my-listing?page={page_num}", log_cb, stop_event, timeout=15_000):
                 break
+            _random_delay(1, 2)
 
         # Scroll untuk load semua produk di halaman ini
         for _ in range(3):
@@ -1587,30 +1601,27 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
 
     navigated = False
     for url in sell_urls:
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
-            try:
-                page.wait_for_load_state("networkidle", timeout=10_000)
-            except PlaywrightTimeout:
-                pass
-            # Check if we landed on a create listing page
-            if "create" in page.url.lower() or "sell" in page.url.lower():
-                navigated = True
-                break
-        except Exception:
+        if not _goto(page, url, log_cb, None, timeout=20_000):
             continue
+        try:
+            page.wait_for_load_state("networkidle", timeout=10_000)
+        except PlaywrightTimeout:
+            pass
+        if "create" in page.url.lower() or "sell" in page.url.lower():
+            navigated = True
+            break
 
     # Fallback: find and click "Sell" button from any page
     if not navigated:
-        try:
-            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=20_000)
-            sell_link = page.locator("a:has-text('Sell'), button:has-text('Sell')").first
-            if sell_link.is_visible():
-                sell_link.click()
-                _random_delay(2, 3)
-                navigated = True
-        except Exception:
-            pass
+        if _goto(page, BASE_URL, log_cb, None, timeout=20_000):
+            try:
+                sell_link = page.locator("a:has-text('Sell'), button:has-text('Sell')").first
+                if sell_link.is_visible():
+                    sell_link.click()
+                    _random_delay(2, 3)
+                    navigated = True
+            except Exception:
+                pass
 
     if not navigated:
         _log(log_cb, "   WARNING: Could not navigate to sell/create listing page")
@@ -2207,27 +2218,28 @@ def run_once(
         # If need login, open login page and wait
         if need_login:
             _log(log_cb, "🌐 Opening login page...")
-            page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
-            
+            _goto(page, f"{BASE_URL}/login", log_cb, stop_event)
+
             if not _wait_for_login_in_browser(page, log_cb, stop_event):
                 _log(log_cb, "❌ Login failed or cancelled")
-                browser.close()
+                if not use_manual_browser:
+                    browser.close()
                 return
-            
+
             # Save the new session
             save_session(context)
             _log(log_cb, "💾 Session saved for future use")
         else:
             # Try to go to my-listing to verify session works
             try:
-                page.goto(f"{BASE_URL}/my-listing", wait_until="domcontentloaded", timeout=15_000)
+                _goto(page, f"{BASE_URL}/my-listing", log_cb, stop_event, timeout=15_000)
                 _random_delay(2, 3)
-                
+
                 # Check if redirected to login (session actually expired)
                 if "/login" in page.url:
                     _log(log_cb, "⚠️ Session expired in browser - redirecting to login...")
-                    page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=30_000)
-                    
+                    _goto(page, f"{BASE_URL}/login", log_cb, stop_event)
+
                     if not _wait_for_login_in_browser(page, log_cb, stop_event):
                         _log(log_cb, "❌ Login failed or cancelled")
                         browser.close()
