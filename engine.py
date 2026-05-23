@@ -2079,18 +2079,36 @@ CDP_PORT = 9222
 def _try_connect_cdp(pw, log_cb=None):
     """
     Try to connect to a manually-opened Chrome via CDP (remote debugging).
+    Reuses the existing tab that has zeusx.com open.
     Returns (browser, context, page) or (None, None, None) if not available.
     """
     try:
         browser = pw.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
-        contexts = browser.contexts
-        if contexts:
-            context = contexts[0]
-            pages = context.pages
-            page = pages[0] if pages else context.new_page()
-        else:
-            context = browser.new_context()
+
+        # Kumpulkan semua pages dari semua contexts
+        all_pages = []
+        for ctx in browser.contexts:
+            all_pages.extend(ctx.pages)
+
+        if not all_pages:
+            _log(log_cb, "⚠️ Tidak ada tab terbuka di browser, membuka tab baru...")
+            context = browser.contexts[0] if browser.contexts else browser.new_context()
             page = context.new_page()
+            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30_000)
+        else:
+            # Prioritaskan tab yang sudah buka zeusx.com
+            zeusx_page = None
+            for p in all_pages:
+                try:
+                    if BASE_URL.replace("https://", "").replace("http://", "") in p.url:
+                        zeusx_page = p
+                        break
+                except Exception:
+                    continue
+            page = zeusx_page or all_pages[0]
+            context = page.context
+            _log(log_cb, f"✅ Menggunakan tab: {page.url[:60]}")
+
         if HAS_STEALTH:
             try:
                 stealth_sync(page)
@@ -2098,7 +2116,8 @@ def _try_connect_cdp(pw, log_cb=None):
                 pass
         _log(log_cb, f"✅ Terhubung ke browser manual (CDP port {CDP_PORT})")
         return browser, context, page
-    except Exception:
+    except Exception as e:
+        _log(log_cb, f"   [CDP error] {e}")
         return None, None, None
 
 
