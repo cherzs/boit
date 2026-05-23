@@ -549,6 +549,71 @@ def _detect_captcha(page) -> bool:
     return False
 
 
+def _detect_cloudflare(page) -> bool:
+    """Detect if Cloudflare challenge/protection page is active."""
+    try:
+        title = page.title()
+        if "just a moment" in title.lower() or "checking your browser" in title.lower():
+            return True
+    except Exception:
+        pass
+
+    cloudflare_selectors = [
+        '#cf-wrapper',
+        '#cf-content',
+        '.cf-browser-verification',
+        '.cf-challenge-running',
+        '#challenge-running',
+        '#challenge-form',
+        'iframe[src*="challenges.cloudflare"]',
+        '[class*="cf-turnstile"]',
+    ]
+    for sel in cloudflare_selectors:
+        try:
+            el = page.query_selector(sel)
+            if el and el.is_visible():
+                return True
+        except Exception:
+            continue
+
+    try:
+        page_text = page.inner_text('body', timeout=2000)
+        cf_keywords = ['checking your browser', 'enable javascript and cookies', 'ray id', 'cloudflare']
+        text_lower = page_text.lower()
+        if any(k in text_lower for k in cf_keywords[:3]):
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def _wait_for_cloudflare_passed(page, log_cb=None, stop_event=None, timeout_seconds=120) -> bool:
+    """
+    Wait for user to pass Cloudflare challenge manually.
+    Returns True if passed, False if timeout or stopped.
+    """
+    _log(log_cb, "🛡️  Cloudflare detected! Silakan selesaikan challenge di browser...")
+    _log(log_cb, "   ⏳ Bot akan menunggu sampai halaman terbuka penuh...")
+
+    for i in range(timeout_seconds):
+        if stop_event and stop_event.is_set():
+            return False
+
+        time.sleep(1)
+
+        if not _detect_cloudflare(page):
+            _log(log_cb, "✅ Cloudflare passed! Melanjutkan bot...")
+            _random_delay(2, 3)
+            return True
+
+        if i % 15 == 0 and i > 0:
+            _log(log_cb, f"   Masih menunggu Cloudflare... ({i}s)")
+
+    _log(log_cb, "❌ Timeout menunggu Cloudflare challenge")
+    return False
+
+
 def _wait_for_captcha_solved(page, log_cb=None, stop_event=None, timeout_seconds=300):
     """
     Wait for user to solve CAPTCHA manually.
@@ -2071,7 +2136,23 @@ def run_once(
         page = context.new_page()
         if HAS_STEALTH:
             stealth_sync(page)
-        
+
+        # Step 0: Open homepage first, wait for user to pass Cloudflare
+        _log(log_cb, "🌐 Membuka halaman utama untuk cek Cloudflare...")
+        try:
+            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30_000)
+        except Exception:
+            pass
+
+        if _detect_cloudflare(page):
+            if not _wait_for_cloudflare_passed(page, log_cb, stop_event):
+                _log(log_cb, "❌ Cloudflare tidak berhasil dilewati")
+                browser.close()
+                return
+        else:
+            _log(log_cb, "✅ Tidak ada Cloudflare, lanjut...")
+            _random_delay(1, 2)
+
         # If need login, open login page and wait
         if need_login:
             _log(log_cb, "🌐 Opening login page...")
