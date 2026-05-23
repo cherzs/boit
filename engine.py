@@ -551,39 +551,30 @@ def _detect_captcha(page) -> bool:
 
 def _detect_cloudflare(page) -> bool:
     """Detect if Cloudflare challenge/protection page is active."""
+    # Hanya cek title — paling reliable, tidak false-positive di halaman normal
     try:
         title = page.title()
-        if "just a moment" in title.lower() or "checking your browser" in title.lower():
+        title_lower = title.lower()
+        if any(t in title_lower for t in ["just a moment", "checking your browser", "verifying you are human"]):
             return True
     except Exception:
         pass
 
-    cloudflare_selectors = [
-        '#cf-wrapper',
-        '#cf-content',
-        '.cf-browser-verification',
-        '.cf-challenge-running',
+    # Cek selector CF yang hanya ada di halaman challenge, bukan halaman normal
+    challenge_selectors = [
         '#challenge-running',
         '#challenge-form',
-        'iframe[src*="challenges.cloudflare"]',
-        '[class*="cf-turnstile"]',
+        '#cf-wrapper',
+        '.cf-browser-verification',
+        '.cf-challenge-running',
     ]
-    for sel in cloudflare_selectors:
+    for sel in challenge_selectors:
         try:
             el = page.query_selector(sel)
             if el and el.is_visible():
                 return True
         except Exception:
             continue
-
-    try:
-        page_text = page.inner_text('body', timeout=2000)
-        cf_keywords = ['checking your browser', 'enable javascript and cookies', 'ray id', 'cloudflare']
-        text_lower = page_text.lower()
-        if any(k in text_lower for k in cf_keywords[:3]):
-            return True
-    except Exception:
-        pass
 
     return False
 
