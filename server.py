@@ -205,6 +205,7 @@ def api_start():
                 headless=cfg.get("headless", False),
                 log_cb=log_callback,
                 stop_event=bot_state["stop_event"],
+                use_manual_browser=cfg.get("use_manual_browser", False),
             ) or []
         finally:
             bot_state["running"] = False

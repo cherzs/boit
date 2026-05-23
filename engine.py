@@ -2073,14 +2073,45 @@ def _wait_for_login_in_browser(page, log_cb=None, stop_event=None, timeout_secon
     return False
 
 
+CDP_PORT = 9222
+
+
+def _try_connect_cdp(pw, log_cb=None):
+    """
+    Try to connect to a manually-opened Chrome via CDP (remote debugging).
+    Returns (browser, context, page) or (None, None, None) if not available.
+    """
+    try:
+        browser = pw.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
+        contexts = browser.contexts
+        if contexts:
+            context = contexts[0]
+            pages = context.pages
+            page = pages[0] if pages else context.new_page()
+        else:
+            context = browser.new_context()
+            page = context.new_page()
+        if HAS_STEALTH:
+            try:
+                stealth_sync(page)
+            except Exception:
+                pass
+        _log(log_cb, f"✅ Terhubung ke browser manual (CDP port {CDP_PORT})")
+        return browser, context, page
+    except Exception:
+        return None, None, None
+
+
 def run_once(
     headless: bool = False,
     log_cb=None,
     stop_event: threading.Event = None,
+    use_manual_browser: bool = False,
 ):
     """
     Manual run: Opens browser window (like login) and re-lists all products.
     If session expired, will open login page for manual re-login.
+    If use_manual_browser=True, connect to existing Chrome via CDP instead of launching new one.
     """
     if stop_event is None:
         stop_event = threading.Event()
@@ -2089,16 +2120,16 @@ def run_once(
     _log(log_cb, "="*50)
     _log(log_cb, "BOT STARTING - Checking session...")
     _log(log_cb, "="*50)
-    
+
     session_valid = False
     need_login = False
-    
+
     if has_session():
         session_valid = True
     else:
         _log(log_cb, "⚠️ No session found - will need to login")
         need_login = True
-    
+
     products = load_products()
     enabled = [p for p in products if p.get("enabled", True)]
 
@@ -2107,42 +2138,52 @@ def run_once(
         return
 
     _log(log_cb, f"Bot started - {len(enabled)} product(s) to re-list")
-    _log(log_cb, "Opening browser window...")
 
-    # Open ONE browser window for all products (like login)
     with sync_playwright() as pw:
-        # Force headless=False so user can see the browser
-        browser = pw.chromium.launch(headless=False, channel="chrome")
-        w = random.randint(1280, 1920)
-        h = random.randint(800, 1080)
-        
-        kwargs = {"viewport": {"width": w, "height": h}}
-        
-        # Only use storage_state if session is valid
-        if session_valid and has_session():
-            kwargs["storage_state"] = AUTH_FILE
-            _log(log_cb, "✅ Using saved session")
-        
-        context = browser.new_context(**kwargs)
-        page = context.new_page()
-        if HAS_STEALTH:
-            stealth_sync(page)
+        browser = None
+        context = None
+        page = None
 
-        # Step 0: Open homepage first, wait for user to pass Cloudflare
-        _log(log_cb, "🌐 Membuka halaman utama untuk cek Cloudflare...")
-        try:
-            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30_000)
-        except Exception:
-            pass
-
-        if _detect_cloudflare(page):
-            if not _wait_for_cloudflare_passed(page, log_cb, stop_event):
-                _log(log_cb, "❌ Cloudflare tidak berhasil dilewati")
-                browser.close()
+        if use_manual_browser:
+            _log(log_cb, f"🔌 Mencoba konek ke browser manual di port {CDP_PORT}...")
+            _log(log_cb, f"   Pastikan Chrome sudah dibuka dengan flag:")
+            _log(log_cb, f"   --remote-debugging-port={CDP_PORT}")
+            browser, context, page = _try_connect_cdp(pw, log_cb)
+            if browser is None:
+                _log(log_cb, "❌ Tidak bisa konek ke browser manual.")
+                _log(log_cb, f"   Buka Chrome dengan perintah berikut dulu:")
+                _log(log_cb, f'   chrome.exe --remote-debugging-port={CDP_PORT} --user-data-dir="C:\\chrome-bot"')
                 return
         else:
-            _log(log_cb, "✅ Tidak ada Cloudflare, lanjut...")
-            _random_delay(1, 2)
+            # Launch browser automatically
+            _log(log_cb, "Opening browser window...")
+            browser = pw.chromium.launch(headless=False, channel="chrome")
+            w = random.randint(1280, 1920)
+            h = random.randint(800, 1080)
+            kwargs = {"viewport": {"width": w, "height": h}}
+            if session_valid and has_session():
+                kwargs["storage_state"] = AUTH_FILE
+                _log(log_cb, "✅ Using saved session")
+            context = browser.new_context(**kwargs)
+            page = context.new_page()
+            if HAS_STEALTH:
+                stealth_sync(page)
+
+            # Step 0: Open homepage first, wait for user to pass Cloudflare
+            _log(log_cb, "🌐 Membuka halaman utama untuk cek Cloudflare...")
+            try:
+                page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30_000)
+            except Exception:
+                pass
+
+            if _detect_cloudflare(page):
+                if not _wait_for_cloudflare_passed(page, log_cb, stop_event):
+                    _log(log_cb, "❌ Cloudflare tidak berhasil dilewati")
+                    browser.close()
+                    return
+            else:
+                _log(log_cb, "✅ Tidak ada Cloudflare, lanjut...")
+                _random_delay(1, 2)
 
         # If need login, open login page and wait
         if need_login:
@@ -2253,8 +2294,11 @@ def run_once(
             _log(log_cb, "✅ Manual run completed!")
             
         finally:
-            browser.close()
-            _log(log_cb, "Browser closed.")
+            if not use_manual_browser:
+                browser.close()
+                _log(log_cb, "Browser closed.")
+            else:
+                _log(log_cb, "Browser manual dibiarkan terbuka.")
 
     return results
 

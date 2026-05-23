@@ -2,5 +2,6 @@
     "interval_minutes": 10,
     "headless": false,
     "username": "your-username",
-    "password": "your-password"
+    "password": "your-password",
+    "use_manual_browser": false
 }
