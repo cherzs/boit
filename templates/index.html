@@ -1202,6 +1202,26 @@
                 </div>
             </div>
 
+            <!-- Data Migration Section -->
+            <div class="sidebar-section" id="migrationSection" style="display:none;">
+                <div class="sidebar-title">🗄️ Data</div>
+
+                <div id="dbStats" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px;font-size:0.78rem;color:var(--text-secondary);line-height:1.8;margin-bottom:0.8rem;">
+                    Loading…
+                </div>
+
+                <div id="migrationAlert" style="display:none;background:rgba(245,158,11,0.1);border:1px solid var(--amber);border-radius:8px;padding:10px;font-size:0.78rem;color:var(--amber);margin-bottom:0.8rem;">
+                    ⚠️ File JSON lama ditemukan.<br>
+                    <span id="migrationFiles" style="color:var(--text-secondary);"></span>
+                </div>
+
+                <button class="btn btn-primary" id="migrateBtn" onclick="doMigrate()" style="display:none;">
+                    📥 Migrasi JSON → SQLite
+                </button>
+
+                <div id="migrationResult" style="display:none;margin-top:0.5rem;font-size:0.78rem;"></div>
+            </div>
+
             <!-- Settings Section -->
             <div class="sidebar-section">
                 <div class="sidebar-title">Settings</div>
@@ -1993,6 +2013,73 @@
         }
 
         // ═══════════════════════════════════════════════════════════
+        // DATA MIGRATION
+        // ═══════════════════════════════════════════════════════════
+        async function loadDbStatus() {
+            const res = await fetch('/api/db_status');
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const stats = data.stats || {};
+            const jsonFiles = data.json_files || {};
+            const hasJsonFiles = Object.values(jsonFiles).some(Boolean);
+
+            // Selalu tampilkan section data
+            document.getElementById('migrationSection').style.display = 'block';
+
+            // DB stats
+            document.getElementById('dbStats').innerHTML =
+                `<b style="color:var(--accent)">SQLite DB</b><br>` +
+                `📦 ${stats.products || 0} produk &nbsp;|&nbsp; ` +
+                `⚙️ ${stats.config_keys || 0} config &nbsp;|&nbsp; ` +
+                `🔐 ${stats.has_auth ? 'session ada' : 'no session'}<br>` +
+                `💾 ${stats.db_size_kb || 0} KB`;
+
+            // Migration alert & button
+            if (hasJsonFiles) {
+                const foundFiles = Object.entries(jsonFiles)
+                    .filter(([k, v]) => v)
+                    .map(([k]) => k + '.json')
+                    .join(', ');
+                document.getElementById('migrationFiles').textContent = foundFiles;
+                document.getElementById('migrationAlert').style.display = 'block';
+                document.getElementById('migrateBtn').style.display = 'block';
+            } else {
+                document.getElementById('migrationAlert').style.display = 'none';
+                document.getElementById('migrateBtn').style.display = 'none';
+            }
+        }
+
+        async function doMigrate() {
+            const btn = document.getElementById('migrateBtn');
+            const resultEl = document.getElementById('migrationResult');
+            btn.disabled = true;
+            btn.textContent = '⏳ Migrating…';
+            resultEl.style.display = 'none';
+
+            const res = await fetch('/api/migrate', { method: 'POST' });
+            const data = await res.json();
+
+            btn.disabled = false;
+            btn.textContent = '📥 Migrasi JSON → SQLite';
+
+            resultEl.style.display = 'block';
+            if (data.ok && data.migrated && data.migrated.length > 0) {
+                resultEl.innerHTML =
+                    `<div style="color:var(--green)">✅ Berhasil:<br>${data.migrated.join('<br>')}</div>` +
+                    `<div style="color:var(--text-muted);margin-top:4px;">File JSON lama bisa kamu hapus manual setelah verifikasi.</div>`;
+                showToast('Migrasi berhasil!', 'success');
+                await loadDbStatus();
+                await loadProducts();
+            } else if (data.errors && data.errors.length > 0) {
+                resultEl.innerHTML = `<div style="color:var(--red)">❌ Error:<br>${data.errors.join('<br>')}</div>`;
+                showToast('Migrasi gagal!', 'error');
+            } else {
+                resultEl.innerHTML = `<div style="color:var(--text-muted)">Tidak ada data baru untuk dimigrasikan.</div>`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // INIT
         // ═══════════════════════════════════════════════════════════
         async function init() {
@@ -2000,6 +2087,7 @@
             if (s) updateStatus(s);
             await loadProducts();
             await loadLogs();
+            await loadDbStatus();
         }
 
         init();

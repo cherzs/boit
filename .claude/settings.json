@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys; sys.path.insert\\(0, '/Users/mac/Documents/Dev/Kerjaan/BOT'\\); import database as db; db.init_db\\(\\); print\\('DB init OK'\\); print\\('Config:', db.load_config\\(\\)\\); print\\('Products:', len\\(db.load_products\\(\\)\\), 'items'\\); print\\('Session:', db.has_session\\(\\)\\)\")"
+    ]
+  }
+}

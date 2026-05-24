@@ -18,6 +18,7 @@ import streamlit as st
 from datetime import datetime
 
 import engine
+import database as db
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -190,7 +191,7 @@ with st.sidebar:
     if engine.has_session():
         st.markdown("<div style='margin:5px 0;'></div>", unsafe_allow_html=True)
         if st.button("🗑️ Logout / Clear Session", use_container_width=True):
-            os.remove(engine.AUTH_FILE)
+            db.clear_session()
             st.rerun()
     
     # Info box

@@ -24,6 +24,8 @@ from pathlib import Path
 from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
+import database as db
+
 # Stealth import (optional graceful degradation)
 try:
     from playwright_stealth import stealth_sync
@@ -80,29 +82,19 @@ def _interruptible_sleep(seconds: int, stop_event: threading.Event):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def load_config() -> dict:
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"interval_minutes": 10, "headless": False}
+    return db.load_config()
 
 
 def save_config(cfg: dict):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=4)
+    db.save_config(cfg)
 
 
 def load_products() -> list:
-    """Load saved product data from products.json."""
-    if os.path.exists(PRODUCTS_FILE):
-        with open(PRODUCTS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
+    return db.load_products()
 
 
 def save_products(products: list):
-    """Persist product data to products.json."""
-    with open(PRODUCTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(products, f, indent=4, ensure_ascii=False)
+    db.save_products(products)
 
 
 def get_duplicate_titles(products: list) -> list:
@@ -151,20 +143,8 @@ def remove_duplicate_products() -> int:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def has_session() -> bool:
-    """Check if auth.json exists and is valid."""
-    if not os.path.exists(AUTH_FILE):
-        return False
-    
-    try:
-        with open(AUTH_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            # Check if has cookies
-            if data.get('cookies') and len(data['cookies']) > 0:
-                return True
-    except:
-        pass
-    
-    return False
+    """Check if a valid session exists in the database."""
+    return db.has_session()
 
 
 def validate_session(log_cb=None) -> bool:
@@ -217,7 +197,8 @@ def validate_session(log_cb=None) -> bool:
 
 
 def save_session(context):
-    context.storage_state(path=AUTH_FILE)
+    state = context.storage_state()
+    db.save_session_dict(state)
 
 
 def open_login_browser(log_cb=None):
@@ -454,18 +435,17 @@ def import_session_from_chrome(log_cb=None):
         }
         storage_state["cookies"].append(cookie)
     
-    # Save to auth.json
+    # Save to SQLite (also syncs to auth.json for Playwright)
     try:
-        with open(AUTH_FILE, 'w', encoding='utf-8') as f:
-            json.dump(storage_state, f, indent=2)
-        
+        db.save_session_dict(storage_state)
+
         _log(log_cb, "\n" + "="*50)
         _log(log_cb, f"✅ SUCCESS! Session imported from {best_browser}")
-        _log(log_cb, f"   Saved {len(best_cookies)} cookie(s) to auth.json")
+        _log(log_cb, f"   Saved {len(best_cookies)} cookie(s) to database")
         _log(log_cb, "="*50)
         _log(log_cb, "\n🎉 You can now start the bot!")
         return True
-        
+
     except Exception as e:
         _log(log_cb, f"❌ Error saving session: {e}")
         return False
@@ -477,8 +457,9 @@ def _new_context(pw, headless: bool = False):
     w = random.randint(1280, 1920)
     h = random.randint(800, 1080)
     kwargs = {"viewport": {"width": w, "height": h}}
-    if has_session():
-        kwargs["storage_state"] = AUTH_FILE
+    session_path = db.get_session_path()
+    if session_path:
+        kwargs["storage_state"] = session_path
     context = browser.new_context(**kwargs)
     page = context.new_page()
     if HAS_STEALTH:
@@ -1251,13 +1232,13 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
         
         kwargs = {"viewport": {"width": w, "height": h}}
         if session_valid and has_session():
-            kwargs["storage_state"] = AUTH_FILE
-        
+            kwargs["storage_state"] = db.get_session_path()
+
         context = browser.new_context(**kwargs)
         page = context.new_page()
         if HAS_STEALTH:
             stealth_sync(page)
-        
+
         # Handle login if needed (only for my-listing)
         if need_login:
             _log(log_cb, "🌐 Opening login page...")
@@ -2227,7 +2208,7 @@ def run_once(
                 h = random.randint(800, 1080)
                 kwargs = {"viewport": {"width": w, "height": h}}
                 if session_valid:
-                    kwargs["storage_state"] = AUTH_FILE
+                    kwargs["storage_state"] = db.get_session_path()
                     _log(log_cb, "✅ Using saved session")
                 context = browser.new_context(**kwargs)
                 page = context.new_page()
@@ -2305,13 +2286,9 @@ def run_once(
                         success = create_listing(page, product, log_cb)
 
                         if success:
-                            # Update timestamp
-                            product["last_relisted"] = datetime.now().isoformat()
-                            products = load_products()
-                            for p in products:
-                                if p.get("url") == product.get("url"):
-                                    p["last_relisted"] = product["last_relisted"]
-                            save_products(products)
+                            ts = datetime.now().isoformat()
+                            product["last_relisted"] = ts
+                            db.update_product_relisted(product.get("url", ""), ts)
                             _log(log_cb, "✅ Product re-listed successfully!")
                             break
                         else:

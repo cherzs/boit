@@ -19,6 +19,7 @@ from flask_socketio import SocketIO
 from datetime import datetime
 
 import engine
+import database as db
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["SECRET_KEY"] = "zeusx-auto-relister-secret"
@@ -367,13 +368,32 @@ def api_import_chrome():
 
 @app.route("/api/logout", methods=["POST"])
 def api_logout():
-    import os
-    if os.path.exists(engine.AUTH_FILE):
-        os.remove(engine.AUTH_FILE)
-        log_callback("🗑️ Session cleared")
-        socketio.emit("status_update", _build_status())
-        return jsonify({"ok": True})
-    return jsonify({"ok": True, "message": "No session to clear"})
+    db.clear_session()
+    log_callback("🗑️ Session cleared")
+    socketio.emit("status_update", _build_status())
+    return jsonify({"ok": True})
+
+
+@app.route("/api/migrate", methods=["POST"])
+def api_migrate():
+    """Migrasikan data dari file JSON lama ke SQLite."""
+    result = db.migrate_from_json()
+    socketio.emit("status_update", _build_status())
+    return jsonify({
+        "ok": len(result["errors"]) == 0,
+        "migrated": result["migrated"],
+        "errors": result["errors"],
+        "counts": result["counts"],
+    })
+
+
+@app.route("/api/db_status", methods=["GET"])
+def api_db_status():
+    """Status database SQLite dan keberadaan file JSON lama."""
+    return jsonify({
+        "stats": db.db_stats(),
+        "json_files": db.json_files_exist(),
+    })
 
 
 @app.route("/api/logs/clear", methods=["POST"])
