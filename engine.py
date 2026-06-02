@@ -2115,10 +2115,12 @@ def run_once(
     headless: bool = False,
     log_cb=None,
     stop_event: threading.Event = None,
+    product_urls: list = None,
 ):
     """
     Run once: tries to connect to existing Chrome via CDP first (new tab),
     falls back to launching a new browser if CDP is not available.
+    If product_urls is provided, only those products (matching by url) will be processed.
     """
     if stop_event is None:
         stop_event = threading.Event()
@@ -2134,6 +2136,12 @@ def run_once(
 
     products = load_products()
     enabled = [p for p in products if p.get("enabled", True)]
+
+    # If specific product URLs are provided, only match those
+    if product_urls:
+        url_set = set(product_urls)
+        enabled = [p for p in enabled if p.get("url") in url_set]
+        _log(log_cb, f"Filtered to {len(enabled)} product(s) matching search results")
 
     if not enabled:
         _log(log_cb, "WARNING: No products enabled for Listing")
@@ -2234,15 +2242,15 @@ def run_once(
                         break
 
                     try:
-                        # Step 1: Delete old listing
-                        deleted = delete_listing(page, product, log_cb)
-                        if not deleted:
-                            _log(log_cb, "   ❌ Delete failed. Batal membuat listing baru untuk menghindari duplikat.")
-                            fail_reason = "Delete listing gagal"
-                            break
+                        # # Step 1: Delete old listing
+                        # deleted = delete_listing(page, product, log_cb)
+                        # if not deleted:
+                        #     _log(log_cb, "   ❌ Delete failed. Batal membuat listing baru untuk menghindari duplikat.")
+                        #     fail_reason = "Delete listing gagal"
+                        #     break
                         
-                        _log(log_cb, "   ✅ Delete successful! Preparing to create new listing...")
-                        _random_delay(3, 5)  # Tunggu lebih lama setelah delete
+                        # _log(log_cb, "   ✅ Delete successful! Preparing to create new listing...")
+                        # _random_delay(3, 5)  # Tunggu lebih lama setelah delete
 
                         # Step 2: Create new listing
                         success = create_listing(page, product, log_cb)

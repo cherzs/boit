@@ -3363,8 +3363,10 @@
 
         async function doStart() {
             await saveSettings();
-            const res = await api('start', 'POST');
-            if (res) showToast('Bot started', 'success');
+            const filtered = getFilteredProducts();
+            const urls = filtered.map(p => p.url).filter(Boolean);
+            const res = await api('start', 'POST', { urls: urls.length > 0 ? urls : null });
+            if (res) showToast(urls.length > 0 ? `Bot started with ${urls.length} product(s)` : 'Bot started', 'success');
         }
 
         async function doStop() {

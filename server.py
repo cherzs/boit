@@ -250,10 +250,19 @@ def api_start():
     if bot_state["running"]:
         return jsonify({"error": "Bot already running"}), 400
 
+    data = request.get_json(silent=True) or {}
+    product_urls = data.get("urls", None)
+
     products = engine.load_products()
     enabled = [p for p in products if p.get("enabled", True)]
-    if not enabled:
-        return jsonify({"error": "No products enabled"}), 400
+    if product_urls:
+        url_set = set(product_urls)
+        enabled = [p for p in enabled if p.get("url") in url_set]
+        if not enabled:
+            return jsonify({"error": "No matching enabled products from search"}), 400
+    else:
+        if not enabled:
+            return jsonify({"error": "No products enabled"}), 400
     if not engine.has_session():
         return jsonify({"error": "Login first"}), 400
 
@@ -268,6 +277,7 @@ def api_start():
                 headless=cfg.get("headless", False),
                 log_cb=log_callback,
                 stop_event=bot_state["stop_event"],
+                product_urls=product_urls,
             ) or []
         finally:
             bot_state["running"] = False
