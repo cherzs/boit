@@ -1,3 +1,6 @@
+# Chrome profile - keep local only
+chrome_profile/
+
 # Data files - keep local only
 images/
 auth.json
