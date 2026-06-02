@@ -1,7 +1,7 @@
 """
-app.py — ZeusX Auto Re-Lister Dashboard
+app.py — ZeusX Auto Listing Dashboard
 ==========================================
-Streamlit UI for managing the ZeusX auto re-listing bot.
+Streamlit UI for managing the ZeusX auto Listing bot.
 
 Features:
 - Session management (login / logout)
@@ -24,7 +24,7 @@ import database as db
 # Page config
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="ZeusX Auto Re-Lister",
+    page_title="ZeusX Auto Listing",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -229,7 +229,7 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════════════
 # HEADER
 # ═══════════════════════════════════════════════════════════════════════════
-st.markdown("# 🚀 ZeusX Auto Re-Lister")
+st.markdown("# 🚀 ZeusX Auto Listing")
 st.caption("Keep your products at the top — automatically re-list on schedule")
 
 
@@ -393,7 +393,7 @@ if products:
 
     # Summary
     enabled_count = sum(1 for p in products if p.get("enabled", True))
-    st.info(f"**{enabled_count}** of {len(products)} product(s) enabled for re-listing")
+    st.info(f"**{enabled_count}** of {len(products)} product(s) enabled for Listing")
 else:
     st.markdown(
         '<div style="text-align:center; padding:2rem; color:#666">'

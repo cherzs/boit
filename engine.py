@@ -1,10 +1,10 @@
 """
-engine.py — ZeusX Auto Re-Listing Engine
+engine.py — ZeusX Auto Listing Engine
 ==========================================
-Core automation for the re-listing bot:
+Core automation for the Listing bot:
 1. Session management (manual login → save cookies)
 2. Product scraping (seller profile → product details)
-3. Re-listing loop (delete old → create new → product stays on top)
+3. Listing loop (delete old → create new → product stays on top)
 
 Uses Playwright + playwright_stealth for anti-detection.
 """
@@ -101,10 +101,13 @@ def get_duplicate_titles(products: list) -> list:
     """Find product titles that appear more than once."""
     titles = [p.get("title", "").strip() for p in products if p.get("title")]
     counts = {}
+    display_titles = {}
     for t in titles:
-        counts[t] = counts.get(t, 0) + 1
+        key = t.lower()
+        counts[key] = counts.get(key, 0) + 1
+        display_titles.setdefault(key, t)
     
-    duplicates = [t for t, count in counts.items() if count > 1]
+    duplicates = [display_titles[t] for t, count in counts.items() if count > 1]
     return sorted(duplicates)
 
 
@@ -127,8 +130,9 @@ def remove_duplicate_products() -> int:
             cleaned.append(p)
             continue
             
-        if title not in seen_titles:
-            seen_titles.add(title)
+        key = title.lower()
+        if key not in seen_titles:
+            seen_titles.add(key)
             cleaned.append(p)
     
     removed_count = original_count - len(cleaned)
@@ -1128,7 +1132,7 @@ def scrape_product_detail(page, product_url: str, log_cb=None) -> dict:
     except Exception:
         pass
 
-    # --- Specification fields (for re-listing) ---
+    # --- Specification fields (for Listing) ---
     # Extract from the Specification section of the page
     try:
         page_text = page.inner_text("body")
@@ -1224,20 +1228,41 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
     
     _log(log_cb, "Starting full product scan...")
     
-    # Open browser (visible like login)
+    # Open browser the same way as Start Bot: use an existing/debug Chrome tab
+    # first, then fall back to a visible Playwright browser.
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=False, channel="chrome")
-        w = random.randint(1280, 1920)
-        h = random.randint(800, 1080)
-        
-        kwargs = {"viewport": {"width": w, "height": h}}
-        if session_valid and has_session():
-            kwargs["storage_state"] = db.get_session_path()
+        _log(log_cb, f"🔌 Mencoba konek ke Chrome yang sudah buka (port {CDP_PORT})...")
+        browser, context, page = _try_connect_cdp(pw, log_cb)
+        using_cdp = browser is not None
 
-        context = browser.new_context(**kwargs)
-        page = context.new_page()
-        if HAS_STEALTH:
-            stealth_sync(page)
+        if not using_cdp:
+            _log(log_cb, "⚠️  Chrome belum buka di port 9222, meluncurkan Chrome...")
+            launched = _launch_chrome_debug(log_cb)
+            if launched:
+                _log(log_cb, "   Menunggu Chrome siap...")
+                for _ in range(10):
+                    time.sleep(1)
+                    browser, context, page = _try_connect_cdp(pw, log_cb)
+                    if browser is not None:
+                        using_cdp = True
+                        _log(log_cb, "✅ Terhubung ke Chrome!")
+                        break
+
+            if not using_cdp:
+                _log(log_cb, "⚠️  Fallback: membuka browser via Playwright...")
+                browser = pw.chromium.launch(headless=False, channel="chrome")
+                w = random.randint(1280, 1920)
+                h = random.randint(800, 1080)
+
+                kwargs = {"viewport": {"width": w, "height": h}}
+                if session_valid and has_session():
+                    kwargs["storage_state"] = db.get_session_path()
+                    _log(log_cb, "✅ Using saved session")
+
+                context = browser.new_context(**kwargs)
+                page = context.new_page()
+                if HAS_STEALTH:
+                    stealth_sync(page)
 
         # Handle login if needed (only for my-listing)
         if need_login:
@@ -1289,7 +1314,7 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
 
                 detail = scrape_product_detail(page, url, log_cb)
                 if detail and detail.get("title"):
-                    # Mark as enabled for re-listing by default
+                    # Mark as enabled for Listing by default
                     detail["enabled"] = True
                     detail["last_relisted"] = None
                     newly_scanned.append(detail)
@@ -1316,7 +1341,7 @@ def scan_all_products(headless: bool = False, log_cb=None, store_url: str = "") 
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# RE-LISTING LOGIC
+# Listing LOGIC
 # ═══════════════════════════════════════════════════════════════════════════
 
 def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
@@ -1328,7 +1353,12 @@ def delete_listing(page, product: dict, log_cb=None, stop_event=None) -> bool:
     title = product.get("title", "")
     url = product.get("url", "")
     slug = url.rstrip('/').split('/')[-1] if url else ""
-    
+
+    # Produk baru (dibuat manual, belum pernah di-listing) — skip delete
+    if url.startswith("local://"):
+        _log(log_cb, f"   📝 New product '{title}' — skipping delete (not yet on ZeusX)")
+        return True
+
     _log(log_cb, f"Deleting: {title}")
     if slug:
         _log(log_cb, f"   (Using slug: {slug} for accurate matching)")
@@ -1609,7 +1639,7 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
         _log(log_cb, "   WARNING: Could not navigate to sell/create listing page")
         return False
 
-    _random_delay(1, 2)
+    _random_delay(0.5, 0.8)
 
     # Check for CAPTCHA after navigating to create page
     if _detect_captcha(page):
@@ -1623,7 +1653,7 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
         category_btn.wait_for(timeout=10_000)
         category_btn.click()
         _log(log_cb, "   Category: In-Game Items")
-        _random_delay(1, 2)
+        _random_delay(0.4, 0.6)
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not select category: {e}")
         return False
@@ -1631,36 +1661,29 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     # --- Step 2: Select Game → search and click ---
     game_name = product.get("game_name", "Roblox In Game Items")
     try:
-        # Find the search input for game
         game_search = page.locator("input[placeholder*='game' i], input[placeholder*='search' i]").first
         game_search.wait_for(timeout=10_000)
-        game_search.click()
-        _random_delay(0.3, 0.5)
         game_search.fill(game_name)
-        _random_delay(1, 2)
+        _random_delay(0.5, 0.8)  # wait for autocomplete results
 
-        # Click the matching game result
         game_result = page.locator(f"text='{game_name}'").last
         game_result.click()
         _log(log_cb, f"   Game: {game_name}")
-        _random_delay(1, 2)
+        _random_delay(0.4, 0.6)
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not select game: {e}")
         return False
 
     # --- Step 3: Product Details ---
 
-    # Title
+    # Title — fill() is instant, no per-keystroke delay
     try:
         title_input = page.locator("xpath=//div[text()='Listing Title']/following::input").first
         if not title_input.is_visible():
             title_input = page.locator("input[placeholder*='Eg:']").first
         title_input.wait_for(timeout=10_000)
-        title_input.click()
-        title_input.fill("")
-        title_input.type(title, delay=_typing_delay())
+        title_input.fill(title)
         _log(log_cb, f"   Title: {title[:50]}")
-        _random_delay(0.5, 1)
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not fill title: {e}")
         return False
@@ -1670,71 +1693,52 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     try:
         price_input = page.locator("xpath=//div[contains(@class, 'input_label__zMh1l') and contains(., 'Price')]/following::input").first
         if not price_input.is_visible():
-            price_input = page.locator("input[type='text']").nth(1)  # Fallback
-        
+            price_input = page.locator("input[type='text']").nth(1)
         if price_input.is_visible():
-            price_input.click()
-            price_input.fill("")
-            price_input.type(str(price), delay=_typing_delay())
+            price_input.fill(str(price))
             _log(log_cb, f"   Price: ${price}")
-            _random_delay(0.5, 1)
     except Exception as e:
         _log(log_cb, f"   WARNING: Could not fill price: {e}")
 
-    # Force quantity to 20 (as requested: "don't follow previous product data")
+    # Quantity = 20
     quantity = 20
-        
     try:
-        # Check "Multiple quantity?" checkbox by clicking its container
         qty_checkbox = page.locator("div.checkbox_checkbox__O5kmi:has-text('Multiple quantity?')").first
         if qty_checkbox.is_visible():
             qty_checkbox.click()
-            _random_delay(0.8, 1.5)
+            _random_delay(0.3, 0.5)  # wait for qty input to appear
 
-            # Fill quantity input (appears after checking the box)
-            # Cari input quantity yang placeholder-nya "Eg: 10"
             qty_input = page.locator("input[placeholder='Eg: 10']").first
-            
-            # Atau cari div input-wrapper dengan placeholder apa saja tapi posisinya setelah checkbox
             if not qty_input.is_visible():
                 qty_input = qty_checkbox.locator("xpath=../following-sibling::*//input[contains(@placeholder, 'Eg:')]").first
-                
             if not qty_input.is_visible():
-                # Fallback: ambil input kedua atau yang paling masuk akal (hindari judul)
                 all_inputs = page.locator("div[class*='input-wrapper'] input").all()
                 if len(all_inputs) > 1:
-                    qty_input = all_inputs[-1] # Usually quantity is below title/price
-                
+                    qty_input = all_inputs[-1]
             if qty_input and qty_input.is_visible():
-                qty_input.fill("")
-                qty_input.type(str(quantity), delay=_typing_delay())
+                qty_input.fill(str(quantity))
                 _log(log_cb, f"   Quantity: {quantity}")
-                _random_delay(0.5, 1)
     except Exception:
         pass
 
-    # Sub-game dropdown (e.g. "Sailor Piece")
+    # Sub-game dropdown
     sub_game = product.get("sub_game", "")
     if sub_game:
         try:
-            # Click the "Game" dropdown (under "Please select one option")
             game_dropdown = page.locator("text='Please select one option'").first
             if game_dropdown.is_visible():
                 game_dropdown.click()
-                _random_delay(0.5, 1)
+                _random_delay(0.3, 0.5)
 
-                # Type in the search box inside the dropdown
                 dropdown_search = page.locator("input[placeholder*='search' i]").last
                 if dropdown_search.is_visible():
-                    dropdown_search.fill(sub_game[:3])  # Type first few chars
-                    _random_delay(1, 2)
+                    dropdown_search.fill(sub_game[:3])
+                    _random_delay(0.5, 0.7)  # wait for dropdown results
 
-                # Select the matching option
                 option = page.locator(f"text='{sub_game}'").last
                 if option.is_visible():
                     option.click()
                     _log(log_cb, f"   Sub-game: {sub_game}")
-                    _random_delay(0.5, 1)
         except Exception:
             pass
 
@@ -1742,130 +1746,88 @@ def create_listing(page, product: dict, log_cb=None) -> bool:
     delivery_days = product.get("delivery_days", 0)
     delivery_hours = product.get("delivery_hours", 1)
     try:
-        # Find Days and Hours inputs
-        day_inputs = page.locator("input[type='number'], input[placeholder*='day' i]")
-        hour_inputs = page.locator("input[type='number'], input[placeholder*='hour' i]")
-
-        # Look for inputs near "Days" and "Hours" labels
         days_label = page.locator("text='Days'")
         hours_label = page.locator("text='Hours'")
-
         if days_label.is_visible():
             days_input = days_label.locator("xpath=following::input[1]")
             if days_input.is_visible():
                 days_input.fill(str(delivery_days))
-                _random_delay(0.3, 0.5)
-
         if hours_label.is_visible():
             hours_input = hours_label.locator("xpath=following::input[1]")
             if hours_input.is_visible():
                 hours_input.fill(str(delivery_hours))
                 _log(log_cb, f"   Delivery: {delivery_days}d {delivery_hours}h")
-                _random_delay(0.3, 0.5)
     except Exception:
         pass
 
-    # Description (optional - many listings have none)
+    # Description — type with delay=0 (contenteditable doesn't support fill)
     desc = product.get("description", "")
     if desc:
         try:
             desc_editor = page.locator("[contenteditable='true'], .ck-editor__editable").first
             if desc_editor.is_visible():
                 desc_editor.click()
-                desc_editor.type(desc, delay=_typing_delay())
+                desc_editor.type(desc, delay=0)
                 _log(log_cb, f"   Description: {len(desc)} chars")
-                _random_delay(0.5, 1)
         except Exception:
             pass
 
-    _random_delay(1, 2)
-
     # --- Step 4: Upload Images ---
     local_images = product.get("local_images", [])
-    _log(log_cb, f"   Found {len(local_images)} image(s) in product data")
-    
+
     valid_images = []
     for p in local_images:
-        # Cross-platform fix: If path contains Windows slashes or doesn't exist, try local IMAGES_DIR
         if not os.path.isfile(p):
             filename = os.path.basename(p.replace("\\", "/"))
             local_path = os.path.join(IMAGES_DIR, filename)
             if os.path.isfile(local_path):
                 valid_images.append(local_path)
-                continue
-            _log(log_cb, f"   [DEBUG] Image not found: {p} (also checked {local_path})")
         else:
             valid_images.append(p)
 
-    _log(log_cb, f"   Valid images on disk: {len(valid_images)}")
-    
     if valid_images:
         try:
             _log(log_cb, f"   Uploading {len(valid_images)} image(s)...")
-            
-            # Click the upload box via file chooser to ensure React captures the event
             upload_box = page.locator("div[class*='image-upload-box']").first
-            _log(log_cb, "   [DEBUG] Mengklik area <div class='image-upload-box'> untuk memilih gambar...")
-            
             if upload_box.is_visible():
                 with page.expect_file_chooser(timeout=5000) as fc_info:
                     upload_box.click()
-                file_chooser = fc_info.value
-                file_chooser.set_files(valid_images)
+                fc_info.value.set_files(valid_images)
             else:
-                # Fallback directly to the input if box not found
                 file_input = page.locator("input[type='file'][accept*='image'], input[type='file']").first
                 if file_input:
                     file_input.set_input_files(valid_images)
                 else:
                     _log(log_cb, "   WARNING: Could not find file input for images")
-
             _log(log_cb, f"   ✅ Uploaded {len(valid_images)} image(s)")
-            _random_delay(3, 5)  # Wait for upload processing
-            
+            _random_delay(2, 3)  # server-side upload processing
         except Exception as e:
             _log(log_cb, f"   WARNING: Image upload error: {e}")
     else:
-        _log(log_cb, "   No valid images to upload")
-
-    _random_delay(1, 2)
+        _log(log_cb, "   No images to upload")
 
     # --- Check Terms checkbox ---
-    # Klik CHECKBOX-NYA, bukan text/link
     try:
-        # Cari checkbox input yang ada di dalam container dengan text "I agree with"
         terms_checkbox_input = page.locator("div.checkbox_checkbox__O5kmi:has-text('I agree with') input[type='checkbox']").last
-        
         if not terms_checkbox_input.is_visible():
-            # Fallback: cari checkbox input dalam label "I agree with"
             terms_checkbox_input = page.locator("label:has-text('I agree with') input[type='checkbox']").last
-            
         if not terms_checkbox_input.is_visible():
-            # Fallback: cari semua checkbox, lalu cek yang dekat dengan "I agree with"
-            checkboxes = page.locator("input[type='checkbox']").all()
-            for cb in checkboxes:
+            for cb in page.locator("input[type='checkbox']").all():
                 try:
-                    # Cek apakah checkbox ini dekat dengan text "I agree"
                     parent = cb.locator("xpath=..")
                     if parent.is_visible() and "I agree" in (parent.inner_text() or ""):
                         terms_checkbox_input = cb
                         break
-                except:
+                except Exception:
                     continue
-        
         if terms_checkbox_input and terms_checkbox_input.is_visible():
-            # Klik checkboxnya langsung
             terms_checkbox_input.click()
             _log(log_cb, "   Checked: I agree with terms")
-            _random_delay(0.5, 1)
         else:
-            # Last resort: klik container tapi usahakan jangan klik link
-            # Klik di pojok kiri container (biasanya checkbox di kiri, link di kanan)
             terms_container = page.locator("div.checkbox_checkbox__O5kmi:has-text('I agree with')").last
             if terms_container.is_visible():
                 terms_container.click(position={"x": 10, "y": 10})
                 _log(log_cb, "   Checked: I agree with terms (container click)")
-                _random_delay(0.5, 1)
     except Exception:
         pass
 
@@ -2174,7 +2136,7 @@ def run_once(
     enabled = [p for p in products if p.get("enabled", True)]
 
     if not enabled:
-        _log(log_cb, "WARNING: No products enabled for re-listing")
+        _log(log_cb, "WARNING: No products enabled for Listing")
         return
 
     _log(log_cb, f"Bot started - {len(enabled)} product(s) to re-list")
@@ -2250,7 +2212,7 @@ def run_once(
             except Exception as e:
                 _log(log_cb, f"⚠️ Error checking session: {e}")
         
-        _log(log_cb, "✅ Ready! Starting re-listing process...")
+        _log(log_cb, "✅ Ready! Starting Listing process...")
         
         max_retries = 3
         results: list[dict] = []
@@ -2262,7 +2224,7 @@ def run_once(
                     break
 
                 title = product.get('title', '?')
-                _log(log_cb, f"── Re-listing {idx+1}/{len(enabled)}: {title[:60]} ──")
+                _log(log_cb, f"── Listing {idx+1}/{len(enabled)}: {title[:60]} ──")
 
                 success = False
                 fail_reason = "Unknown error"

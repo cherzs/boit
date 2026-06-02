@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeusX Auto Re-Lister</title>
-    <meta name="description" content="Automated product re-listing tool for ZeusX marketplace">
+    <title>ZeusX Auto Listing</title>
+    <meta name="description" content="Automated product Listing tool for ZeusX marketplace">
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
@@ -321,7 +321,8 @@
         }
 
         .form-group input[type="text"],
-        .form-group input[type="number"] {
+        .form-group input[type="number"],
+        .form-group select {
             width: 100%;
             padding: 0.7rem 1rem;
             background: var(--bg-input);
@@ -525,7 +526,7 @@
            ═══════════════════════════════════════════════════════════════ */
         .product-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 1rem;
         }
 
@@ -534,19 +535,23 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: border-color 0.2s, background 0.2s;
             cursor: pointer;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
         }
 
         .product-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-            border-color: rgba(255, 255, 255, 0.1);
+            transform: none;
+            box-shadow: none;
+            border-color: rgba(255, 255, 255, 0.12);
+            background: var(--bg-card-hover);
         }
 
         .product-card.disabled {
-            opacity: 0.5;
+            opacity: 0.72;
         }
 
         .product-card.editing {
@@ -556,7 +561,7 @@
 
         .product-card-header {
             position: relative;
-            height: 160px;
+            height: 148px;
             background: var(--bg-input);
             overflow: hidden;
         }
@@ -575,7 +580,18 @@
             justify-content: center;
             font-size: 0.9rem;
             color: var(--text-muted);
-            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card-hover) 100%);
+            background:
+                linear-gradient(0deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.018)),
+                var(--bg-input);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.05);
+        }
+
+        .product-card-image-placeholder span {
+            padding: 0.45rem 0.7rem;
+            border: 1px solid rgba(226, 232, 240, 0.08);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.025);
+            font-size: 0.78rem;
         }
 
         .product-card-checkbox {
@@ -605,14 +621,17 @@
         }
 
         .product-card-body {
-            padding: 1rem;
+            padding: 0.9rem;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
         }
 
         .product-card-title {
             font-weight: 600;
             font-size: 0.9rem;
             color: var(--text-primary);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.35rem;
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
@@ -638,16 +657,16 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 8px;
-            justify-content: space-between;
-            padding-top: 0.8rem;
+            gap: 0.75rem;
+            padding-top: 0.75rem;
             border-top: 1px solid var(--border);
+            margin-top: auto;
         }
 
         .product-card-price {
             color: var(--green);
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 1.02rem;
         }
 
         .product-card-price-input {
@@ -773,7 +792,7 @@
 
         @media (max-width: 768px) {
             .product-grid {
-                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                grid-template-columns: 1fr;
             }
         }
 
@@ -1025,6 +1044,20 @@
             color: var(--text-primary);
         }
 
+        .modal-action-footer {
+            position: sticky;
+            bottom: -2rem;
+            z-index: 5;
+            margin: 1.5rem -2rem -2rem;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.8rem;
+            border-top: 1px solid var(--border);
+            background: rgba(17, 19, 29, 0.96);
+            backdrop-filter: blur(10px);
+        }
+
         .modal-field {
             margin-bottom: 1rem;
         }
@@ -1098,6 +1131,951 @@
             padding-bottom: 0.35rem;
             border-bottom: 2px solid rgba(99, 102, 241, 0.25);
         }
+
+        /* ═══════════════════════════════════════════════════════════════
+           ADDITIONAL BUTTON VARIANTS
+           ═══════════════════════════════════════════════════════════════ */
+        .btn-amber {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            color: white;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.2);
+        }
+        .btn-amber:hover { box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35); }
+
+        .btn-sm {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           TOOLBAR
+           ═══════════════════════════════════════════════════════════════ */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1.2rem;
+            padding-bottom: 1.2rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .toolbar-left  { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+        .toolbar-right { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .toolbar-sep {
+            width: 1px; height: 22px;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+        .search-input {
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            width: 200px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus { border-color: var(--border-focus); }
+
+        /* ═══════════════════════════════════════════════════════════════
+           PRODUCT CARD — polished
+           ═══════════════════════════════════════════════════════════════ */
+        .product-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+            gap: 0.5rem;
+        }
+        .product-card-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card-hover) 100%);
+        }
+        .product-card.selected {
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           CREATE PRODUCT MODAL FORM
+           ═══════════════════════════════════════════════════════════════ */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+        @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+        .form-row .form-group { margin-bottom: 0; }
+        .modal-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin: 1.2rem 0 0.6rem 0;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           PRODUCTION DASHBOARD POLISH
+           ═══════════════════════════════════════════════════════════════ */
+        :root {
+            --bg-primary: #090a10;
+            --bg-secondary: #11131d;
+            --bg-card: #151827;
+            --bg-card-hover: #191d2d;
+            --bg-input: #0f1220;
+            --border: rgba(226, 232, 240, 0.08);
+            --text-primary: #eef2ff;
+            --text-secondary: #a4abc0;
+            --text-muted: #6f778e;
+            --accent: #7c3aed;
+            --accent-glow: rgba(124, 58, 237, 0.18);
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --radius: 10px;
+            --radius-sm: 8px;
+        }
+
+        body::before,
+        body::after {
+            display: none;
+        }
+
+        .sidebar {
+            width: 292px;
+            padding: 1.25rem;
+            background: #0f111b;
+        }
+
+        .main-content {
+            margin-left: 292px;
+            max-width: calc(100% - 292px);
+            padding: 1.75rem;
+        }
+
+        .container {
+            max-width: 1180px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        .sidebar-title {
+            margin-bottom: 0.8rem;
+            font-size: 0.92rem;
+            letter-spacing: 0;
+        }
+
+        .session-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.9rem;
+            padding: 0.7rem 0.85rem;
+            font-size: 0.82rem;
+        }
+
+        .session-status::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: currentColor;
+        }
+
+        .info-box {
+            background: rgba(124, 58, 237, 0.08);
+            border-color: rgba(124, 58, 237, 0.22);
+            color: var(--text-secondary);
+        }
+
+        .advanced-settings {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .advanced-settings details {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: rgba(255, 255, 255, 0.02);
+            overflow: hidden;
+        }
+
+        .advanced-settings summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 0.85rem 0.9rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .advanced-settings summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .advanced-body {
+            padding: 0 0.9rem 0.9rem;
+        }
+
+        .advanced-settings details:not([open]) .advanced-body {
+            display: none;
+        }
+
+        .dashboard-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .dashboard-header h1 {
+            margin: 0 0 0.35rem;
+            color: var(--text-primary);
+            font-size: 1.55rem;
+            font-weight: 750;
+            letter-spacing: 0;
+        }
+
+        .dashboard-header p {
+            max-width: 620px;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .panel {
+            padding: 1.15rem;
+            margin-bottom: 1rem;
+            background: #11131d;
+        }
+
+        .panel-title {
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .cards {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .card {
+            padding: 0.9rem 1rem;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: none;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .card:hover {
+            transform: none;
+            box-shadow: none;
+            background: var(--bg-card-hover);
+            border-color: rgba(226, 232, 240, 0.12);
+        }
+
+        .card .label {
+            margin-bottom: 0.45rem;
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+        }
+
+        .card .value {
+            font-size: 1.15rem;
+            line-height: 1.25;
+        }
+
+        .btn {
+            width: auto;
+            margin-bottom: 0;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            box-shadow: none;
+        }
+
+        .sidebar .btn {
+            width: 100%;
+            margin-bottom: 0.55rem;
+        }
+
+        .btn:hover {
+            transform: none;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            box-shadow: none;
+        }
+
+        .btn-primary:hover {
+            background: #8b5cf6;
+            box-shadow: none;
+        }
+
+        .btn-success {
+            background: var(--green);
+            color: #04130a;
+            box-shadow: none;
+        }
+
+        .btn-success:hover {
+            background: #35d36f;
+            box-shadow: none;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.34);
+            color: #fca5a5;
+            box-shadow: none;
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.18);
+            box-shadow: none;
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.02);
+            border-color: var(--border);
+        }
+
+        .btn-soft-success {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .btn-soft-success:hover {
+            background: rgba(34, 197, 94, 0.18);
+        }
+
+        .btn-soft-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.32);
+            color: #fcd34d;
+        }
+
+        .btn-soft-warning:hover {
+            background: rgba(245, 158, 11, 0.18);
+        }
+
+        .btn-soft-info {
+            background: rgba(124, 58, 237, 0.11);
+            border-color: rgba(124, 58, 237, 0.34);
+            color: #c4b5fd;
+        }
+
+        .btn-soft-info:hover {
+            background: rgba(124, 58, 237, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.42;
+            background: rgba(148, 163, 184, 0.08);
+            border-color: rgba(148, 163, 184, 0.12);
+            color: var(--text-muted);
+            box-shadow: none;
+        }
+
+        .toolbar {
+            align-items: stretch;
+            flex-direction: column;
+            gap: 0.9rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        .product-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .toolbar-left {
+            width: 100%;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .product-filter-row,
+        .bulk-action-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .bulk-action-row {
+            padding: 0.75rem;
+            border: 1px solid rgba(226, 232, 240, 0.08);
+            border-radius: var(--radius);
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        .toolbar-right {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .product-create-action {
+            display: flex;
+            justify-content: flex-end;
+            flex: 0 0 auto;
+        }
+
+        .action-group {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0;
+            border: none;
+            border-radius: var(--radius);
+            background: transparent;
+        }
+
+        .action-group-label {
+            padding: 0 0.3rem;
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .action-group-selected {
+            border-color: transparent;
+            background: transparent;
+        }
+
+        .action-group-danger {
+            border-color: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.045);
+        }
+
+        .toolbar-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+            flex: 0 0 auto;
+        }
+
+        .selected-pill {
+            display: none;
+            align-items: center;
+            gap: 0.22rem;
+            color: var(--text-secondary);
+            font-size: 0.76rem;
+            padding: 0;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        .search-input {
+            flex: 1 1 320px;
+            width: min(380px, 100%);
+            padding: 0.55rem 0.75rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .filter-select {
+            flex: 0 0 190px;
+            min-width: 190px;
+            padding: 0.55rem 0.75rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            outline: none;
+        }
+
+        .bot-control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .bot-panel {
+            border-color: rgba(34, 197, 94, 0.12);
+        }
+
+        .bot-control-copy {
+            color: var(--text-secondary);
+            font-size: 0.86rem;
+            line-height: 1.5;
+            max-width: 620px;
+        }
+
+        .bot-control-copy strong {
+            display: block;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .bot-actions {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin-left: auto;
+        }
+
+        .helper-text {
+            display: none;
+            margin-top: 0.75rem;
+            color: var(--amber);
+            font-size: 0.82rem;
+        }
+
+        .empty-state {
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3.5rem 1.5rem;
+            border: 1px dashed rgba(226, 232, 240, 0.14);
+            border-radius: var(--radius);
+            background: rgba(255, 255, 255, 0.015);
+            color: var(--text-secondary);
+        }
+
+        .empty-state h3 {
+            margin: 0 0 0.5rem;
+            color: var(--text-primary);
+            font-size: 1.05rem;
+        }
+
+        .empty-state p {
+            max-width: 510px;
+            margin: 0 auto 1.2rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .empty-actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+        }
+
+        .image-upload {
+            border: 1px dashed rgba(226, 232, 240, 0.18);
+            border-radius: var(--radius);
+            padding: 0.85rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .image-upload-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .image-upload-copy {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .image-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+            gap: 0.55rem;
+            margin-top: 0.75rem;
+        }
+
+        .image-preview {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .image-preview button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(9, 10, 16, 0.78);
+            color: var(--text-primary);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .image-preview.is-removing {
+            opacity: 0.45;
+            outline: 2px solid rgba(239, 68, 68, 0.45);
+        }
+
+        .product-select-control {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 7px;
+            background: rgba(9, 10, 16, 0.74);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .product-select-control input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .relist-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.74rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .relist-toggle input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .relist-toggle-visual {
+            position: relative;
+            width: 34px;
+            height: 20px;
+            border-radius: 999px;
+            background: rgba(239, 68, 68, 0.16);
+            border: 1px solid rgba(239, 68, 68, 0.24);
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .relist-toggle-visual::after {
+            content: "";
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            left: 3px;
+            top: 2px;
+            border-radius: 999px;
+            background: var(--text-muted);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .relist-toggle input:checked + .relist-toggle-visual {
+            background: rgba(34, 197, 94, 0.18);
+            border-color: rgba(34, 197, 94, 0.34);
+        }
+
+        .relist-toggle input:checked + .relist-toggle-visual::after {
+            transform: translateX(14px);
+            background: var(--green);
+        }
+
+        .product-summary {
+            background: rgba(124, 58, 237, 0.08);
+            border: 1px solid rgba(124, 58, 237, 0.14);
+        }
+
+        .product-card.selected {
+            border-color: rgba(124, 58, 237, 0.7);
+            background: #191a2c;
+            box-shadow: none;
+        }
+
+        .product-card.selected .product-card-header {
+            background: rgba(124, 58, 237, 0.08);
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 270px;
+            }
+
+            .main-content {
+                margin-left: 270px;
+                max-width: calc(100% - 270px);
+            }
+
+            .cards {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .product-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+                padding: 1rem;
+            }
+
+            .dashboard-header,
+            .bot-control-row {
+                flex-direction: column;
+            }
+
+            .header-actions,
+            .bot-actions,
+            .toolbar-right {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .action-group {
+                flex: 1 1 100%;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .header-actions .btn,
+            .bot-actions .btn {
+                flex: 1 1 140px;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar {
+                align-items: stretch;
+            }
+
+            .product-section-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .product-create-action {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .product-create-action .btn {
+                flex: 1 1 180px;
+            }
+
+            .toolbar-left {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .toolbar-meta {
+                width: 100%;
+            }
+
+            .search-input {
+                width: 100%;
+            }
+
+            .filter-select {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .toolbar-right {
+                gap: 0.45rem;
+            }
+
+            .bulk-action-row {
+                gap: 0.55rem;
+            }
+
+            .toolbar-right .btn {
+                flex: 1 1 calc(50% - 0.45rem);
+            }
+
+            .toolbar-sep {
+                display: none;
+            }
+
+            .product-card-footer {
+                align-items: flex-start;
+            }
+
+            .relist-toggle {
+                margin-top: 0.15rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .modal-overlay {
+                align-items: flex-start;
+                padding: 0.75rem;
+                overflow-y: auto;
+            }
+
+            .modal {
+                max-width: 100%;
+                max-height: none;
+                min-height: auto;
+                padding: 1.15rem;
+                border-radius: var(--radius);
+            }
+
+            .modal-close {
+                top: 0.8rem;
+                right: 0.8rem;
+            }
+
+            .modal-action-footer {
+                bottom: -1.15rem;
+                margin: 1.25rem -1.15rem -1.15rem;
+                padding: 0.85rem 1.15rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal > div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            .image-upload-row {
+                align-items: stretch;
+            }
+
+            .image-upload-row .btn {
+                width: 100%;
+            }
+
+            .image-preview-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+
+            .empty-actions,
+            .modal-action-footer {
+                width: 100%;
+            }
+
+            .modal-action-footer .btn {
+                flex: 1 1 130px;
+            }
+
+            .empty-actions .btn {
+                flex: 1 1 150px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .main-content,
+            .sidebar {
+                padding-left: 0.8rem;
+                padding-right: 0.8rem;
+            }
+
+            .dashboard-header h1 {
+                font-size: 1.35rem;
+            }
+
+            .header-actions .btn,
+            .bot-actions .btn,
+            .toolbar-right .btn {
+                flex-basis: 100%;
+            }
+
+            .action-group-label {
+                width: 100%;
+            }
+
+            .product-select-control {
+                font-size: 0;
+                padding: 0.32rem;
+            }
+
+            .product-select-control input {
+                margin: 0;
+            }
+
+            .image-preview-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
     </style>
 </head>
 
@@ -1120,52 +2098,135 @@
                     <input type="number" step="0.01" id="modalPriceInput"
                         style="color:var(--green); font-weight:700; font-size:1.1rem; width:100%;" autocomplete="off">
                 </div>
-                <div class="modal-field">
-                    <div class="label">Item Type</div>
-                    <div class="value" id="modalCategory" style="margin-top:0.4rem">-</div>
+                <div class="modal-field form-group" style="margin-bottom: 0;">
+                    <label>Item Type</label>
+                    <input type="text" id="modalItemTypeInput" placeholder="In-Game Items" autocomplete="off">
                 </div>
-                <div class="modal-field">
-                    <div class="label">Game</div>
-                    <div class="value" id="modalGame">-</div>
-                </div>
-
-                <div class="modal-field">
-                    <div class="label">In Stock</div>
-                    <div class="value" id="modalQty">-</div>
-                </div>
-                <div class="modal-field">
-                    <div class="label">Game</div>
-                    <div class="value" id="modalSubGame">-</div>
+                <div class="modal-field form-group" style="margin-bottom: 0;">
+                    <label>Game</label>
+                    <input type="text" id="modalGameInput" autocomplete="off">
                 </div>
 
-                <div class="modal-field">
-                    <div class="label">Delivery Method</div>
-                    <div class="value" id="modalMethod">-</div>
+                <div class="modal-field form-group" style="margin-bottom: 0;">
+                    <label>In Stock</label>
+                    <input type="number" id="modalQtyInput" min="0" step="1">
                 </div>
-                <div class="modal-field">
-                    <div class="label">Estimated delivery time</div>
-                    <div class="value" id="modalDelivery">-</div>
+                <div class="modal-field form-group" style="margin-bottom: 0;">
+                    <label>Sub Game</label>
+                    <input type="text" id="modalSubGameInput" autocomplete="off">
+                </div>
+
+                <div class="modal-field form-group" style="margin-bottom: 0;">
+                    <label>Delivery Method</label>
+                    <input type="text" id="modalMethodInput" autocomplete="off">
+                </div>
+                <div class="modal-field form-group" style="margin-bottom: 0;">
+                    <label>Delivery Hours</label>
+                    <input type="number" id="modalDeliveryHoursInput" min="0" step="1">
                 </div>
             </div>
             <div class="modal-field">
                 <div class="label">Product Images</div>
+                <div class="image-upload" style="margin-top:0.5rem;">
+                    <div class="image-upload-row">
+                        <div class="image-upload-copy">Manage local product images used when the bot creates the listing.</div>
+                        <button class="btn btn-outline btn-sm" type="button" onclick="document.getElementById('modalImageInput').click()">Add Images</button>
+                    </div>
+                    <input type="file" id="modalImageInput" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleEditImages(this.files)">
+                    <div class="image-preview-grid" id="modalImageEditor" style="display:none;"></div>
+                </div>
                 <div class="modal-images" id="modalImages"></div>
             </div>
             <div class="modal-field">
-                <div class="label">Description</div>
-                <div class="modal-desc" id="modalDesc">-</div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="modalDescInput" rows="4"
+                        style="width:100%;padding:0.7rem 1rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:'Inter',sans-serif;font-size:0.9rem;resize:vertical;outline:none;"></textarea>
+                </div>
             </div>
             <div class="modal-field">
                 <div class="label">Scraped At</div>
                 <div class="value" id="modalScraped">-</div>
             </div>
             <a class="modal-link" id="modalLink" href="#" target="_blank">Open on ZeusX &rarr;</a>
-            <div
-                style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+            <div class="modal-action-footer">
                 <button class="btn btn-outline" style="width:auto; margin:0;"
                     onclick="document.getElementById('modalOverlay').classList.remove('active')">Close</button>
                 <button class="btn btn-success" style="width:auto; margin:0;" onclick="saveProductFromModal()">Save
                     Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE PRODUCT MODAL -->
+    <div class="modal-overlay" id="createProductModal" onclick="closeCreateProduct(event)">
+        <div class="modal" onclick="event.stopPropagation()" style="max-width:560px;">
+            <button class="modal-close" onclick="document.getElementById('createProductModal').classList.remove('active')">&times;</button>
+            <h2 style="margin-bottom:0.3rem;">Create Product</h2>
+            <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1.2rem;">Add a product to your Listing queue. The bot will create the ZeusX listing when it runs.</p>
+
+            <div class="form-group">
+                <label>Product Title <span style="color:var(--red)">*</span></label>
+                <input type="text" id="cpTitle" placeholder="e.g. Blox Fruit Account Level 2000..." autocomplete="off">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Price (USD) <span style="color:var(--red)">*</span></label>
+                    <input type="number" id="cpPrice" placeholder="0.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Item Type</label>
+                    <input type="text" id="cpItemType" placeholder="In-Game Items" value="In-Game Items" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Game Name</label>
+                    <input type="text" id="cpGameName" placeholder="Roblox In Game Items" value="Roblox In Game Items" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Sub Game (optional)</label>
+                    <input type="text" id="cpSubGame" placeholder="e.g. Blox Fruits" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Delivery Hours</label>
+                    <input type="number" id="cpDeliveryHours" placeholder="1" min="0" value="1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Description (optional)</label>
+                <textarea id="cpDescription" rows="3" placeholder="Describe your product..."
+                    style="width:100%;padding:0.7rem 1rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:'Inter',sans-serif;font-size:0.9rem;resize:vertical;outline:none;transition:border-color 0.2s;"
+                    onfocus="this.style.borderColor='var(--border-focus)'"
+                    onblur="this.style.borderColor='var(--border)'"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Images (optional)</label>
+                <div class="image-upload">
+                    <div class="image-upload-row">
+                        <div class="image-upload-copy">
+                            Add product images for manually created listings. You can upload up to 8 images.
+                        </div>
+                        <button class="btn btn-outline btn-sm" type="button" onclick="document.getElementById('cpImages').click()">Add Images</button>
+                    </div>
+                    <input type="file" id="cpImages" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleCreateImages(this.files)">
+                    <div class="image-preview-grid" id="cpImagePreview" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div id="createProductError" style="display:none;color:var(--red);font-size:0.82rem;margin-bottom:0.8rem;"></div>
+
+            <div class="modal-action-footer">
+                <button class="btn btn-outline" style="width:auto;margin:0;"
+                    onclick="document.getElementById('createProductModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" style="width:auto;margin:0;" onclick="submitCreateProduct()">Create Product</button>
             </div>
         </div>
     </div>
@@ -1175,86 +2236,78 @@
         <aside class="sidebar">
             <!-- Session Section -->
             <div class="sidebar-section">
-                <div class="sidebar-title">🔐 Session</div>
+                <div class="sidebar-title">Session</div>
 
                 <div id="sessionStatus" class="session-status inactive">
                     No session - login first
                 </div>
 
-                <button class="btn btn-primary" id="importBtn" onclick="importFromChrome()">
-                    Import Session dari Chrome
+                <button class="btn btn-primary" id="importBtn" data-import-session onclick="importFromChrome()">
+                    Import Chrome Session
                 </button>
 
                 <button class="btn btn-outline" id="manualLoginBtn" onclick="openManualLogin()">
-                    Login Manual (Browser Baru)
+                    Manual Login
                 </button>
 
                 <button class="btn btn-danger" id="logoutBtn" onclick="doLogout()" style="display:none;">
-                    Logout / Clear Session
+                    Clear Session
                 </button>
-
-                <div class="info-box" style="margin-top:1rem;">
-                    <strong>Cara Login (Rekomendasi):</strong><br>
-                    1. Buka Chrome/Edge → Login ke ZeusX<br>
-                    2. Klik "Import Session dari Chrome"<br>
-                    3. Session otomatis tersimpan<br>
-                    4. Ready to start bot!
-                </div>
             </div>
 
-            <!-- Data Migration Section -->
-            <div class="sidebar-section" id="migrationSection" style="display:none;">
-                <div class="sidebar-title">🗄️ Data</div>
+            <!-- Advanced Settings Section -->
+            <div class="sidebar-section advanced-settings">
+                <details>
+                    <summary>Advanced</summary>
+                    <div class="advanced-body">
+                        <input type="hidden" id="sellerUrl" value="https://zeusx.com/seller/gstore-657837">
 
-                <div id="dbStats" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px;font-size:0.78rem;color:var(--text-secondary);line-height:1.8;margin-bottom:0.8rem;">
-                    Loading…
-                </div>
+                        <div class="form-group">
+                            <label>Interval (minutes)</label>
+                            <input type="number" id="intervalMinutes" min="1" max="1440" value="10" step="1">
+                        </div>
 
-                <div id="migrationAlert" style="display:none;background:rgba(245,158,11,0.1);border:1px solid var(--amber);border-radius:8px;padding:10px;font-size:0.78rem;color:var(--amber);margin-bottom:0.8rem;">
-                    ⚠️ File JSON lama ditemukan.<br>
-                    <span id="migrationFiles" style="color:var(--text-secondary);"></span>
-                </div>
+                        <div class="toggle-row">
+                            <span>Headless Mode</span>
+                            <label class="switch">
+                                <input type="checkbox" id="headless">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
 
-                <button class="btn btn-primary" id="migrateBtn" onclick="doMigrate()" style="display:none;">
-                    📥 Migrasi JSON → SQLite
-                </button>
+                        <div class="toggle-row">
+                            <span style="display:flex;flex-direction:column;gap:2px;">
+                                <span>Manual Browser</span>
+                                <small style="color:var(--text-muted);font-size:0.72rem;">Connect to an already-open Chrome window.</small>
+                            </span>
+                            <label class="switch">
+                                <input type="checkbox" id="useManualBrowser">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
 
-                <div id="migrationResult" style="display:none;margin-top:0.5rem;font-size:0.78rem;"></div>
-            </div>
+                        <button class="btn btn-outline" onclick="saveSettings()" style="margin-top:0.5rem;">
+                            Save Settings
+                        </button>
 
-            <!-- Settings Section -->
-            <div class="sidebar-section">
-                <div class="sidebar-title">Settings</div>
+                        <div id="migrationSection" style="display:none;margin-top:1rem;">
+                            <div id="dbStats" style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:8px;padding:10px;font-size:0.78rem;color:var(--text-secondary);line-height:1.8;margin-bottom:0.8rem;">
+                                Loading...
+                            </div>
 
-                <input type="hidden" id="sellerUrl" value="https://zeusx.com/seller/gstore-657837">
+                            <div id="migrationAlert" style="display:none;background:rgba(245,158,11,0.1);border:1px solid var(--amber);border-radius:8px;padding:10px;font-size:0.78rem;color:var(--amber);margin-bottom:0.8rem;">
+                                Legacy JSON files found.<br>
+                                <span id="migrationFiles" style="color:var(--text-secondary);"></span>
+                            </div>
 
-                <div class="form-group">
-                    <label>Interval (minutes)</label>
-                    <input type="number" id="intervalMinutes" min="1" max="1440" value="10" step="1">
-                </div>
+                            <button class="btn btn-primary" id="migrateBtn" onclick="doMigrate()" style="display:none;">
+                                Migrate JSON to SQLite
+                            </button>
 
-                <div class="toggle-row">
-                    <span>Headless Mode</span>
-                    <label class="switch">
-                        <input type="checkbox" id="headless">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="toggle-row">
-                    <span style="display:flex;flex-direction:column;gap:2px;">
-                        <span>Manual Browser</span>
-                        <small style="color:var(--text-muted);font-size:0.72rem;">Konek ke Chrome yang sudah dibuka manual (anti-detect)</small>
-                    </span>
-                    <label class="switch">
-                        <input type="checkbox" id="useManualBrowser">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <button class="btn btn-outline" onclick="saveSettings()" style="margin-top:0.5rem;">
-                    Save Settings
-                </button>
+                            <div id="migrationResult" style="display:none;margin-top:0.5rem;font-size:0.78rem;"></div>
+                        </div>
+                    </div>
+                </details>
             </div>
         </aside>
 
@@ -1262,78 +2315,73 @@
         <main class="main-content">
             <div class="container">
                 <!-- HEADER -->
-                <div class="header">
-                    <h1>ZeusX Auto Re-Lister</h1>
-                    <p>Keep your products at the top - automatically re-list on schedule</p>
+                <div class="dashboard-header">
+                    <div>
+                        <h1>ZeusX Auto Listing</h1>
+                        <p>Keep your products visible by automatically Listing them on schedule.</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-outline btn-sm" data-import-session onclick="importFromChrome()">Import Session</button>
+                        <button class="btn btn-primary btn-sm" id="scanPublicBtn" onclick="scanPublicStore()">Scan Store</button>
+                        <button class="btn btn-outline btn-sm" onclick="openCreateProduct()">Create Product</button>
+                    </div>
                 </div>
 
                 <!-- STATUS CARDS -->
                 <div class="cards">
                     <div class="card">
                         <div class="label">Bot Status</div>
-                        <div class="value" id="statusVal" style="color:var(--red)">STOPPED</div>
+                        <div class="value" id="statusVal" style="color:var(--red)">Stopped</div>
                     </div>
                     <div class="card">
                         <div class="label">Products</div>
-                        <div class="value" id="productCountVal" style="color:var(--accent)">0</div>
+                        <div class="value" id="productCountVal" style="color:var(--accent)">0 / 0</div>
                     </div>
                     <div class="card">
-                        <div class="label">Cycles Done</div>
-                        <div class="value" id="cycleCountVal" style="color:var(--purple)">0</div>
+                        <div class="label">Next Run</div>
+                        <div class="value" id="nextRunVal" style="color:var(--purple);font-size:0.95rem">Not scheduled</div>
                     </div>
                     <div class="card">
                         <div class="label">Last Success</div>
-                        <div class="value" id="lastSuccessVal" style="color:var(--amber);font-size:0.9rem">-</div>
+                        <div class="value" id="lastSuccessVal" style="color:var(--amber);font-size:0.95rem">No run yet</div>
                     </div>
                 </div>
 
-                <!-- PRODUCT SCANNING -->
-                <div class="panel">
-                    <div class="panel-title">Scan Products</div>
-
-                    <p style="margin-bottom:1rem; color:var(--text-secondary); font-size:0.9rem;">
-                        Scan dari public store link. Tidak butuh login.
-                    </p>
-                    <button class="btn btn-primary" id="scanPublicBtn" onclick="scanPublicStore()"
-                        style="margin-top:0.5rem;">
-                        Scan Store
-                    </button>
-
+                <!-- OPERATIONAL NOTICES -->
+                <div class="panel" id="noticePanel" style="display:none;">
                     <!-- DUPLICATE WARNING -->
                     <div id="duplicateWarning"
-                        style="display:none; margin-top:1.5rem; padding:1rem; background:rgba(255,165,0,0.1); border:1px solid var(--amber); border-radius:var(--radius-sm);">
+                        style="display:none; padding:1rem; background:rgba(255,165,0,0.1); border:1px solid var(--amber); border-radius:var(--radius-sm);">
                         <div
                             style="display:flex; align-items:center; gap:0.6rem; color:var(--amber); font-weight:700; margin-bottom:0.5rem;">
-                            <span style="font-size:1.2rem;">⚠️</span>
-                            DUPLICATE PRODUCTS DETECTED
+                            Duplicate Products Detected
                         </div>
                         <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.8rem;">
-                            Beberapa produk memiliki nama (title) yang sama. ZeusX mungkin akan memblokir atau menghapus
-                            produk jika terlalu banyak duplicate.
+                            Some products have the same title. ZeusX may block or remove listings when too many duplicate products are created.
                         </p>
                         <div id="duplicateList"
                             style="font-size:0.85rem; color:var(--amber); display:flex; flex-direction:column; gap:0.3rem;">
                             <!-- List names here -->
                         </div>
                         <button class="btn btn-danger" onclick="cleanDuplicates()"
-                            style="margin-top:1rem; width:auto; padding:0.5rem 1rem; font-size:0.8rem; background:rgba(220,53,69,0.2); border-color:var(--red);">
-                            Hapus Semua Duplikat
+                            style="margin-top:1rem; padding:0.5rem 1rem; font-size:0.8rem;">
+                            Remove Duplicates
                         </button>
                     </div>
 
                     <!-- RELIST RESULTS -->
                     <div id="relistResults"
-                        style="display:none; margin-top:1.5rem; padding:1rem; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius-sm);">
+                        style="display:none; margin-top:1rem; padding:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm);">
                         <div
                             style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.8rem;">
                             <div style="display:flex; align-items:center; gap:0.6rem; font-weight:700; font-size:0.95rem; color:var(--text-primary);">
-                                <span>📋</span> Hasil Re-listing Terakhir
+                                Last Listing Results
                             </div>
                             <div style="display:flex; gap:0.8rem; font-size:0.8rem;">
                                 <span id="relistSuccessCount"
-                                    style="color:var(--green); font-weight:600;">✅ 0 Berhasil</span>
+                                    style="color:var(--green); font-weight:600;">0 successful</span>
                                 <span id="relistFailCount"
-                                    style="color:var(--red); font-weight:600;">❌ 0 Gagal</span>
+                                    style="color:var(--red); font-weight:600;">0 failed</span>
                             </div>
                         </div>
                         <div id="relistResultList"
@@ -1344,55 +2392,80 @@
                     <div id="scanMessage" style="margin-top:1rem;"></div>
                 </div>
 
+                <!-- BOT CONTROLS -->
+                <div class="panel bot-panel">
+                    <div class="bot-control-row">
+                        <div class="bot-control-copy">
+                            <strong>Bot Controls</strong>
+                            Run a Listing cycle for every enabled product.
+                        </div>
+                        <div class="bot-actions">
+                            <button class="btn btn-success btn-sm" id="startBtn" onclick="doStart()">Start Bot</button>
+                            <button class="btn btn-danger btn-sm" id="stopBtn" onclick="doStop()" disabled>Stop Bot</button>
+                        </div>
+                    </div>
+                    <div class="helper-text" id="startHelper">Enable at least one product before starting the bot.</div>
+                </div>
+
                 <!-- PRODUCT GRID -->
                 <div class="panel">
-                    <!-- Toolbar: Controls + Pagination + Actions -->
-                    <div
-                        style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
-                        <!-- Left: Title & Info -->
-                        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-                            <div class="panel-title" style="margin:0;">My Products</div>
-                            <span id="enabledInfo" style="font-size:0.75rem; color:var(--text-muted);"></span>
-                            <div style="position: relative;">
-                                <input type="text" id="searchInput" oninput="handleSearch(this.value)"
-                                    placeholder="Search by name..."
-                                    style="padding:0.4rem 0.8rem; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary); font-size:0.85rem; width:220px; outline:none;"
-                                    onfocus="this.style.borderColor='var(--accent)'"
-                                    onblur="this.style.borderColor='var(--border)'">
+                    <div class="toolbar">
+                        <div class="product-section-header">
+                            <div class="toolbar-meta">
+                                <div class="panel-title" style="margin:0;">Products</div>
+                                <span id="enabledInfo" style="font-size:0.75rem;color:var(--text-muted);white-space:nowrap;"></span>
+                                <span class="selected-pill" id="selectedInfo"><span id="selectedCount">0</span><span>selected</span></span>
+                            </div>
+                            <div class="product-create-action">
+                                <button class="btn btn-primary btn-sm" onclick="openCreateProduct()">Create Product</button>
                             </div>
                         </div>
 
-                        <!-- Center: Pagination -->
-                        <div class="pagination" id="pagination" style="display:none; margin:0; padding:0; border:none;">
-                            <button class="pagination-btn" id="prevPage" onclick="changePage(-1)">Prev</button>
-                            <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
-                            <button class="pagination-btn" id="nextPage" onclick="changePage(1)">Next</button>
+                        <div class="product-filter-row">
+                            <input type="text" class="search-input" id="searchInput"
+                                oninput="handleSearch(this.value)" placeholder="Search products…">
+                            <select class="filter-select" id="gameFilter" onchange="handleFilterChange()">
+                                <option value="">All games</option>
+                            </select>
+                            <select class="filter-select" id="itemTypeFilter" onchange="handleFilterChange()">
+                                <option value="">All item types</option>
+                            </select>
                         </div>
 
-                        <!-- Right: Controls -->
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <button class="btn btn-outline" onclick="toggleAllProducts(true)"
-                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Enable All</button>
-                            <button class="btn btn-outline" onclick="toggleAllProducts(false)"
-                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Disable All</button>
-                            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 5px;"></div>
-                            <button class="btn btn-outline" onclick="toggleSelectionAll(true)"
-                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Pilih Semua</button>
-                            <button class="btn btn-danger" id="bulkDeleteBtn" onclick="deleteBulk()" disabled
-                                style="font-size:0.75rem; padding:0.4rem 0.8rem; width:auto;">Hapus Massal (<span
-                                    id="selectedCount">0</span>)</button>
-                            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 5px;"></div>
-                            <button class="btn btn-success" id="startBtn" onclick="doStart()"
-                                style="padding:0.4rem 1rem; width:auto;">Start Bot</button>
-                            <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled
-                                style="padding:0.4rem 1rem; width:auto;">Stop Bot</button>
+                        <div class="bulk-action-row" id="productActions">
+                            <div class="action-group">
+                                <span class="action-group-label">Selection</span>
+                                <button class="btn btn-soft-info btn-sm" onclick="toggleSelectionAll()">Select Visible</button>
+                            </div>
+                            <div class="action-group action-group-selected" id="selectedActionGroup" style="display:none;">
+                                <span class="action-group-label">Selected</span>
+                                <button class="btn btn-soft-success btn-sm" id="enableSelectedBtn"
+                                    onclick="enableSelected()">
+                                    Enable
+                                </button>
+                                <button class="btn btn-soft-warning btn-sm" id="disableSelectedBtn"
+                                    onclick="disableSelected()">Disable</button>
+                                <button class="btn btn-danger btn-sm" id="deleteSelectedBtn"
+                                    onclick="deleteSelected()">Delete</button>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Pagination (center, below toolbar) -->
+                    <div class="pagination" id="pagination" style="display:none; margin:-0.4rem 0 1rem 0; padding:0; border:none;">
+                        <button class="pagination-btn" id="prevPage" onclick="changePage(-1)">← Prev</button>
+                        <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
+                        <button class="pagination-btn" id="nextPage" onclick="changePage(1)">Next →</button>
                     </div>
 
                     <div class="product-grid" id="productList">
                         <div class="empty-state" style="grid-column: 1 / -1;">
-                            <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">[Empty]</div>
-                            <p>No products loaded. Scan your seller profile to get started.</p>
+                            <h3>No products added yet</h3>
+                            <p>Add your first product manually or scan your ZeusX store to import products automatically.</p>
+                            <div class="empty-actions">
+                                <button class="btn btn-primary btn-sm" onclick="scanPublicStore()">Scan Store</button>
+                                <button class="btn btn-outline btn-sm" onclick="openCreateProduct()">Create Product</button>
+                            </div>
                         </div>
                     </div>
 
@@ -1421,6 +2494,12 @@
         // ═══════════════════════════════════════════════════════════
         const socket = io();
         let selectedUrls = new Set();
+        let latestStatus = null;
+        let createProductImages = [];
+        let editProductImages = [];
+        let editExistingImages = [];
+        let gameFilter = "";
+        let itemTypeFilter = "";
 
         socket.on('log', (data) => {
             appendLog(data.message);
@@ -1435,19 +2514,19 @@
         });
 
         socket.on('relist_complete', (data) => {
-            showToast('Re-listing run complete!', 'success');
+            showToast('Listing run complete!', 'success');
 
             const results = (data && data.results) ? data.results : [];
             const successCount = (data && data.success != null) ? data.success : results.filter(r => r.success).length;
             const failCount = (data && data.failed != null) ? data.failed : results.filter(r => !r.success).length;
 
-            document.getElementById('relistSuccessCount').textContent = `✅ ${successCount} Berhasil`;
-            document.getElementById('relistFailCount').textContent = `❌ ${failCount} Gagal`;
+            document.getElementById('relistSuccessCount').textContent = `${successCount} successful`;
+            document.getElementById('relistFailCount').textContent = `${failCount} failed`;
 
             const list = document.getElementById('relistResultList');
             list.innerHTML = results.map(r => `
                 <div style="display:flex; align-items:flex-start; gap:0.5rem; padding:0.4rem 0.6rem; border-radius:4px; background:${r.success ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)'}; border-left:3px solid ${r.success ? 'var(--green)' : 'var(--red)'};">
-                    <span style="flex-shrink:0; font-size:0.85rem;">${r.success ? '✅' : '❌'}</span>
+                    <span style="flex-shrink:0; font-size:0.75rem; font-weight:700; color:${r.success ? 'var(--green)' : 'var(--red)'};">${r.success ? 'OK' : 'ERR'}</span>
                     <div style="flex:1; min-width:0;">
                         <div style="font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</div>
                         ${!r.success && r.reason ? `<div style="font-size:0.75rem; color:var(--red); margin-top:1px;">${escapeHtml(r.reason)}</div>` : ''}
@@ -1456,6 +2535,7 @@
             `).join('');
 
             document.getElementById('relistResults').style.display = results.length > 0 ? 'block' : 'none';
+            document.getElementById('noticePanel').style.display = results.length > 0 ? 'block' : 'none';
         });
 
         // ═══════════════════════════════════════════════════════════
@@ -1489,14 +2569,15 @@
         // STATUS UPDATE
         // ═══════════════════════════════════════════════════════════
         function updateStatus(s) {
+            latestStatus = s;
             // Bot status
             const statusEl = document.getElementById('statusVal');
             if (s.running) {
-                statusEl.textContent = 'RUNNING';
+                statusEl.textContent = 'Running';
                 statusEl.style.color = 'var(--green)';
                 statusEl.classList.add('pulse');
             } else {
-                statusEl.textContent = 'STOPPED';
+                statusEl.textContent = 'Stopped';
                 statusEl.style.color = 'var(--red)';
                 statusEl.classList.remove('pulse');
             }
@@ -1514,20 +2595,22 @@
             }
 
             // Counts
-            document.getElementById('productCountVal').textContent = s.product_count || 0;
-            document.getElementById('cycleCountVal').textContent = s.cycle_count || 0;
-            document.getElementById('lastSuccessVal').textContent = s.last_success || '—';
+            const enabledCount = s.enabled_count || 0;
+            const productCount = s.product_count || 0;
+            document.getElementById('productCountVal').textContent = `${enabledCount} / ${productCount}`;
+            document.getElementById('nextRunVal').textContent = s.running ? 'Running now' : 'Not scheduled';
+            document.getElementById('lastSuccessVal').textContent = s.last_success || 'No run yet';
 
             // Buttons
-            document.getElementById('startBtn').disabled = s.running;
+            document.getElementById('startBtn').disabled = s.running || enabledCount === 0;
             document.getElementById('stopBtn').disabled = !s.running;
             document.getElementById('scanPublicBtn').disabled = s.running;
+            document.getElementById('startHelper').style.display = enabledCount === 0 ? 'block' : 'none';
 
             // Settings
             if (s.settings) {
                 document.getElementById('headless').checked = s.settings.headless || false;
                 document.getElementById('useManualBrowser').checked = s.settings.use_manual_browser || false;
-                // seller_url selalu fixed, tidak perlu diupdate dari settings
                 if (s.settings.interval_minutes) {
                     document.getElementById('intervalMinutes').value = s.settings.interval_minutes;
                 }
@@ -1535,17 +2618,23 @@
 
             // Enabled info
             document.getElementById('enabledInfo').textContent =
-                `${s.enabled_count || 0} of ${s.product_count || 0} enabled`;
+                productCount > 0 ? `${enabledCount} of ${productCount} active` : '';
 
             // Duplicate warning
             const dupWarning = document.getElementById('duplicateWarning');
             const dupList = document.getElementById('duplicateList');
+            const noticePanel = document.getElementById('noticePanel');
+            const relistResults = document.getElementById('relistResults');
             if (s.duplicate_titles && s.duplicate_titles.length > 0) {
                 dupWarning.style.display = 'block';
                 dupList.innerHTML = s.duplicate_titles.map(t => `<div style="display:flex; align-items:flex-start; gap:0.5rem;">• <span>${escapeHtml(t)}</span></div>`).join('');
             } else {
                 dupWarning.style.display = 'none';
             }
+            noticePanel.style.display =
+                dupWarning.style.display === 'block' || relistResults.style.display === 'block'
+                    ? 'block'
+                    : 'none';
 
             // Update product count in case products were updated
             if (s.product_count !== allProducts.length) {
@@ -1567,6 +2656,7 @@
             if (!products) return;
 
             allProducts = products;
+            updateFilterOptions();
             renderProducts();
         }
 
@@ -1576,27 +2666,92 @@
             renderProducts();
         }
 
+        function handleFilterChange() {
+            gameFilter = document.getElementById('gameFilter').value || "";
+            itemTypeFilter = document.getElementById('itemTypeFilter').value || "";
+            currentPage = 1;
+            renderProducts();
+        }
+
+        function normalizeFilterValue(value) {
+            return String(value || '').trim();
+        }
+
+        function updateFilterOptions() {
+            const gameSelect = document.getElementById('gameFilter');
+            const itemTypeSelect = document.getElementById('itemTypeFilter');
+            if (!gameSelect || !itemTypeSelect) return;
+
+            const selectedGame = gameSelect.value;
+            const selectedItemType = itemTypeSelect.value;
+            const games = [...new Set(allProducts.map(p => normalizeFilterValue(p.game_name)).filter(Boolean))].sort();
+            const itemTypes = [...new Set(allProducts.map(p => normalizeFilterValue(p.item_type)).filter(Boolean))].sort();
+
+            gameSelect.innerHTML = '<option value="">All games</option>' +
+                games.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+            itemTypeSelect.innerHTML = '<option value="">All item types</option>' +
+                itemTypes.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+
+            gameSelect.value = games.includes(selectedGame) ? selectedGame : "";
+            itemTypeSelect.value = itemTypes.includes(selectedItemType) ? selectedItemType : "";
+            gameFilter = gameSelect.value;
+            itemTypeFilter = itemTypeSelect.value;
+        }
+
+        function getFilteredProducts() {
+            const q = searchQuery.toLowerCase();
+            return allProducts.filter(p => {
+                const titleMatch = !searchQuery || (p.title || '').toLowerCase().includes(q);
+                const gameText = p.game_name || '';
+                const subgameText = p.sub_game || '';
+                const itemTypeText = p.item_type || '';
+                const textMatch = !searchQuery
+                    || titleMatch
+                    || gameText.toLowerCase().includes(q)
+                    || subgameText.toLowerCase().includes(q)
+                    || itemTypeText.toLowerCase().includes(q);
+                const gameMatch = !gameFilter || gameText === gameFilter;
+                const itemTypeMatch = !itemTypeFilter || itemTypeText === itemTypeFilter;
+                return textMatch && gameMatch && itemTypeMatch;
+            });
+        }
+
         function renderProducts() {
             const list = document.getElementById('productList');
             const pagination = document.getElementById('pagination');
+            const hasProducts = allProducts.length > 0;
 
-            const q = searchQuery.toLowerCase();
-            const filteredProducts = allProducts.filter(p => {
-                if (!searchQuery) return true;
-                const titleMatch = p.title && p.title.toLowerCase().includes(q);
-                const gameMatch = p.game_name && p.game_name.toLowerCase().includes(q);
-                const subgameMatch = p.sub_game && p.sub_game.toLowerCase().includes(q);
-                return titleMatch || gameMatch || subgameMatch;
+            document.getElementById('searchInput').style.display = hasProducts ? 'block' : 'none';
+            document.getElementById('gameFilter').style.display = hasProducts ? 'block' : 'none';
+            document.getElementById('itemTypeFilter').style.display = hasProducts ? 'block' : 'none';
+            document.getElementById('productActions').style.display = hasProducts ? 'flex' : 'none';
+            document.getElementById('enabledInfo').style.display = hasProducts ? 'inline' : 'none';
+            if (!hasProducts) {
+                selectedUrls.clear();
+            }
+
+            const filteredProducts = getFilteredProducts();
+            const filteredUrlSet = new Set(filteredProducts.map(p => p.url));
+            selectedUrls.forEach(url => {
+                if (!filteredUrlSet.has(url)) selectedUrls.delete(url);
             });
 
             if (filteredProducts.length === 0) {
                 list.innerHTML = `
                     <div class="empty-state" style="grid-column: 1 / -1;">
-                        <div class="icon" style="font-size:2.5rem; color:var(--text-muted)">[Empty]</div>
-                        <p>${allProducts.length === 0 ? 'No products loaded. Scan your seller profile to get started.' : 'No products match your search query.'}</p>
+                        ${hasProducts
+                            ? `<h3>No matching products</h3>
+                               <p>Try a different search term or clear the search field to see all products.</p>`
+                            : `<h3>No products added yet</h3>
+                               <p>Add your first product manually or scan your ZeusX store to import products automatically.</p>
+                               <div class="empty-actions">
+                                   <button class="btn btn-primary btn-sm" onclick="scanPublicStore()">Scan Store</button>
+                                   <button class="btn btn-outline btn-sm" onclick="openCreateProduct()">Create Product</button>
+                               </div>`}
                     </div>`;
                 document.getElementById('productSummary').style.display = 'none';
                 pagination.style.display = 'none';
+                updateSelectionUI();
                 return;
             }
 
@@ -1624,35 +2779,48 @@
                     console.log('Product:', p.title ? p.title.substring(0, 30) : 'No title', '- No local_images');
                 }
 
+                const isSelected = selectedUrls.has(p.url);
                 return `
-                <div class="product-card ${p.enabled ? '' : 'disabled'}" onclick="showProductDetail('${encodeURIComponent(p.url)}')">
+                <div class="product-card ${p.enabled ? '' : 'disabled'}${isSelected ? ' selected' : ''}"
+                     onclick="showProductDetail('${encodeURIComponent(p.url)}')">
                     <div class="product-card-header">
                         ${firstImage
-                        ? `<img src="${firstImage}" class="product-card-image" alt="" loading="lazy" onerror="this.parentElement.querySelector('.product-card-image-placeholder').style.display='flex'; this.style.display='none'; console.log('Image failed:', '${firstImage}');"><div class="product-card-image-placeholder" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:0;">[No Image]</div>`
-                        : `<div class="product-card-image-placeholder">[No Image]</div>`
-                    }
-                        <div class="product-card-checkbox" onclick="event.stopPropagation()" style="left: 10px; display: flex; gap: 8px; align-items: center;">
-                            <input type="checkbox" ${p.enabled ? 'checked' : ''}
-                                   onchange="toggleProduct('${encodeURIComponent(p.url)}')"
-                                   title="Aktifkan Re-listing" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--accent);">
-                            <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2);"></div>
-                            <input type="checkbox" class="mass-select-checkbox" 
-                                   data-url="${encodeURIComponent(p.url)}"
-                                   ${selectedUrls.has(p.url) ? 'checked' : ''}
-                                   onchange="toggleSelection('${encodeURIComponent(p.url)}')"
-                                   title="Pilih untuk Hapus Massal" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--red);">
-                        </div>
-                        <div class="product-card-badge">${p.image_count || 0} images</div>
+                            ? `<img src="${firstImage}" class="product-card-image" alt="" loading="lazy"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                               <div class="product-card-image-placeholder" style="display:none;position:absolute;inset:0;">
+                                   <span>No image</span>
+                               </div>`
+                            : `<div class="product-card-image-placeholder">
+                                   <span>No image</span>
+                               </div>`
+                        }
+                        <label class="product-select-control" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="mass-select-checkbox"
+                                data-url="${encodeURIComponent(p.url)}"
+                                ${isSelected ? 'checked' : ''}
+                                onchange="toggleSelection('${encodeURIComponent(p.url)}')"
+                                title="Select product">
+                        </label>
+                        <div class="product-card-badge">${p.image_count || 0} img</div>
                     </div>
                     <div class="product-card-body">
-                        <div class="product-card-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</div>
+                                <div class="product-card-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</div>
+                                <div class="product-card-meta">${escapeHtml(p.game_name || 'No game')} · ${escapeHtml(p.item_type || 'In-Game Items')}</div>
                         <div class="product-card-footer">
-                            <div style="display:flex; flex-direction:column; gap:2px;">
-                                <div class="product-card-price">$${escapeHtml(p.price || '0')}</div>
-                                <div class="product-card-meta">${p.last_relisted ? p.last_relisted.substring(0, 16) : 'Never'}</div>
+                            <div>
+                                <div class="product-card-price">$${escapeHtml(String(p.price || '0'))}</div>
+                                <div class="product-card-meta" style="margin-top:2px;">
+                                    Last re-listed: ${p.last_relisted ? p.last_relisted.substring(0, 16) : 'Never'}
+                                </div>
                             </div>
-                            <div class="product-card-actions" onclick="event.stopPropagation()">
-                                <button class="delete-btn" onclick="deleteProduct('${encodeURIComponent(p.url)}', '${escapeHtml(p.title)}')" title="Delete">Delete</button>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                                <label class="relist-toggle" onclick="event.stopPropagation()">
+                                    <span>Auto re-list</span>
+                                    <input type="checkbox" ${p.enabled ? 'checked' : ''}
+                                        onchange="toggleProduct('${encodeURIComponent(p.url)}', event)"
+                                        title="Enable auto Listing">
+                                    <span class="relist-toggle-visual"></span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1673,17 +2841,11 @@
             const summaryEl = document.getElementById('productSummary');
             summaryEl.style.display = 'block';
             summaryEl.innerHTML = `<strong>${enabledCount}</strong> of ${allProducts.length} product(s) enabled for re-listing`;
+            updateSelectionUI();
         }
 
         function changePage(direction) {
-            const q = searchQuery.toLowerCase();
-            const filteredProducts = allProducts.filter(p => {
-                if (!searchQuery) return true;
-                const titleMatch = p.title && p.title.toLowerCase().includes(q);
-                const gameMatch = p.game_name && p.game_name.toLowerCase().includes(q);
-                const subgameMatch = p.sub_game && p.sub_game.toLowerCase().includes(q);
-                return titleMatch || gameMatch || subgameMatch;
-            });
+            const filteredProducts = getFilteredProducts();
             const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
             const newPage = currentPage + direction;
 
@@ -1701,8 +2863,8 @@
             return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        async function toggleProduct(encodedUrl) {
-            event.stopPropagation();
+        async function toggleProduct(encodedUrl, ev) {
+            if (ev) ev.stopPropagation();
             const url = decodeURIComponent(encodedUrl);
             await api('product/toggle', 'POST', { url });
             loadProducts();
@@ -1711,13 +2873,16 @@
         }
 
         async function toggleAllProducts(enable) {
-            await api('product/toggle_all', 'POST', { enable });
-            // Reload all products and stay on current page
-            const products = await api('products');
-            if (products) {
-                allProducts = products;
-                renderProducts();
+            // When search/filters are active, only toggle visible filtered products.
+            if (searchQuery || gameFilter || itemTypeFilter) {
+                const filtered = getFilteredProducts();
+                const urls = filtered.map(p => p.url);
+                if (urls.length) await api('product/toggle_selected', 'POST', { urls, enable });
+            } else {
+                await api('product/toggle_all', 'POST', { enable });
             }
+            const products = await api('products');
+            if (products) { allProducts = products; renderProducts(); }
             const s = await api('status');
             if (s) updateStatus(s);
         }
@@ -1732,7 +2897,16 @@
             await api('product/update', 'POST', {
                 url,
                 title: newTitle,
-                price: parseFloat(newPrice) || 0
+                price: parseFloat(newPrice) || 0,
+                item_type: document.getElementById('modalItemTypeInput').value.trim() || 'In-Game Items',
+                game_name: document.getElementById('modalGameInput').value.trim(),
+                sub_game: document.getElementById('modalSubGameInput').value.trim(),
+                quantity: parseInt(document.getElementById('modalQtyInput').value) || 0,
+                delivery_method: document.getElementById('modalMethodInput').value.trim(),
+                delivery_hours: parseInt(document.getElementById('modalDeliveryHoursInput').value) || 0,
+                description: document.getElementById('modalDescInput').value.trim(),
+                local_images_keep: editExistingImages.filter(img => !img.remove).map(img => img.path),
+                new_images: editProductImages,
             });
 
             showToast('Product updated!', 'success');
@@ -1740,6 +2914,8 @@
             loadProducts();
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // SELECTION
         // ═══════════════════════════════════════════════════════════
         function toggleSelection(encodedUrl) {
             event.stopPropagation();
@@ -1752,19 +2928,18 @@
             updateSelectionUI();
         }
 
-        function toggleSelectionAll(select) {
-            const q = searchQuery.toLowerCase();
-            const filteredProducts = allProducts.filter(p => {
-                if (!searchQuery) return true;
-                const titleMatch = p.title && p.title.toLowerCase().includes(q);
-                const gameMatch = p.game_name && p.game_name.toLowerCase().includes(q);
-                return titleMatch || gameMatch;
-            });
+        function toggleSelectionAll() {
+            const filtered = getFilteredProducts();
 
-            if (select) {
-                filteredProducts.forEach(p => selectedUrls.add(p.url));
+            const allFilteredSelected = filtered.length > 0
+                && filtered.every(p => selectedUrls.has(p.url));
+
+            // Toggle: if all filtered are already selected → deselect, otherwise select all filtered
+            if (allFilteredSelected) {
+                filtered.forEach(p => selectedUrls.delete(p.url));
             } else {
-                selectedUrls.clear();
+                selectedUrls.clear();                   // clear first so only filtered are selected
+                filtered.forEach(p => selectedUrls.add(p.url));
             }
             renderProducts();
             updateSelectionUI();
@@ -1772,59 +2947,236 @@
 
         function updateSelectionUI() {
             const count = selectedUrls.size;
-            const btn = document.getElementById('bulkDeleteBtn');
-            const countEl = document.getElementById('selectedCount');
-            if (countEl) countEl.textContent = count;
-            if (btn) btn.disabled = count === 0;
+            document.getElementById('selectedCount').textContent = count;
+            const hasProducts = allProducts.length > 0;
+            const hasSelection = count > 0;
+            document.getElementById('selectedInfo').style.display = hasProducts ? 'inline-flex' : 'none';
+            document.getElementById('selectedActionGroup').style.display = hasProducts ? 'flex' : 'none';
+            document.getElementById('enableSelectedBtn').disabled = !hasSelection;
+            document.getElementById('disableSelectedBtn').disabled = !hasSelection;
+            document.getElementById('deleteSelectedBtn').disabled = !hasSelection;
 
-            // Sync checkboxes currently visible
             document.querySelectorAll('.mass-select-checkbox').forEach(cb => {
                 const url = decodeURIComponent(cb.getAttribute('data-url'));
                 cb.checked = selectedUrls.has(url);
             });
         }
 
-        async function deleteBulk() {
-            const count = selectedUrls.size;
-            if (count === 0) return;
-
-            if (!confirm(`Hapus ${count} produk terpilih secara massal? Tindakan ini tidak bisa dibatalkan.`)) {
-                return;
-            }
-
+        async function enableSelected() {
             const urls = Array.from(selectedUrls);
-            const res = await api('product/delete_bulk', 'POST', { urls });
-
+            if (!urls.length) return;
+            const res = await api('product/toggle_selected', 'POST', { urls, enable: true });
             if (res) {
-                showToast(`${res.deleted_count} produk berhasil dihapus secara massal!`, 'success');
+                urls.forEach(u => { const p = allProducts.find(x => x.url === u); if (p) p.enabled = true; });
                 selectedUrls.clear();
-                allProducts = allProducts.filter(p => !urls.includes(p.url));
                 renderProducts();
                 updateSelectionUI();
                 const s = await api('status');
                 if (s) updateStatus(s);
+                showToast(`${res.count} product(s) enabled`, 'success');
+            }
+        }
+
+        async function disableSelected() {
+            const urls = Array.from(selectedUrls);
+            if (!urls.length) return;
+            const res = await api('product/toggle_selected', 'POST', { urls, enable: false });
+            if (res) {
+                urls.forEach(u => { const p = allProducts.find(x => x.url === u); if (p) p.enabled = false; });
+                selectedUrls.clear();
+                renderProducts();
+                updateSelectionUI();
+                const s = await api('status');
+                if (s) updateStatus(s);
+                showToast(`${res.count} product(s) disabled`, 'info');
+            }
+        }
+
+        async function deleteSelected() {
+            const urls = Array.from(selectedUrls);
+            if (!urls.length) return;
+            if (!confirm(`Delete ${urls.length} selected product(s)?`)) return;
+
+            const res = await api('product/delete_bulk', 'POST', { urls });
+            if (res) {
+                selectedUrls.clear();
+                await loadProducts();
+                const s = await api('status');
+                if (s) updateStatus(s);
+                showToast(`${res.deleted_count} product(s) deleted`, 'info');
             }
         }
 
         // ═══════════════════════════════════════════════════════════
-        // DELETE PRODUCT
+        // CREATE PRODUCT
         // ═══════════════════════════════════════════════════════════
-        async function deleteProduct(encodedUrl, title) {
-            event.stopPropagation();
-            const url = decodeURIComponent(encodedUrl);
+        function openCreateProduct() {
+            document.getElementById('cpTitle').value = '';
+            document.getElementById('cpPrice').value = '';
+            document.getElementById('cpItemType').value = 'In-Game Items';
+            document.getElementById('cpGameName').value = 'Roblox In Game Items';
+            document.getElementById('cpSubGame').value = '';
+            document.getElementById('cpDeliveryHours').value = '1';
+            document.getElementById('cpDescription').value = '';
+            document.getElementById('cpImages').value = '';
+            createProductImages = [];
+            renderCreateImagePreview();
+            document.getElementById('createProductError').style.display = 'none';
+            document.getElementById('createProductModal').classList.add('active');
+            setTimeout(() => document.getElementById('cpTitle').focus(), 100);
+        }
 
-            if (!confirm(`Hapus produk "${title}"?`)) {
+        function fileToDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleCreateImages(files) {
+            const errEl = document.getElementById('createProductError');
+            const incoming = Array.from(files || []).filter(file => file.type.startsWith('image/'));
+            const availableSlots = Math.max(0, 8 - createProductImages.length);
+            const selected = incoming.slice(0, availableSlots);
+
+            if (incoming.length > availableSlots) {
+                errEl.textContent = 'You can upload up to 8 images.';
+                errEl.style.display = 'block';
+            } else {
+                errEl.style.display = 'none';
+            }
+
+            for (const file of selected) {
+                const data = await fileToDataUrl(file);
+                createProductImages.push({ name: file.name, type: file.type, data });
+            }
+
+            document.getElementById('cpImages').value = '';
+            renderCreateImagePreview();
+        }
+
+        function removeCreateImage(index) {
+            createProductImages.splice(index, 1);
+            renderCreateImagePreview();
+        }
+
+        function renderCreateImagePreview() {
+            const preview = document.getElementById('cpImagePreview');
+            if (!preview) return;
+            if (createProductImages.length === 0) {
+                preview.style.display = 'none';
+                preview.innerHTML = '';
                 return;
             }
 
-            const res = await api('product/delete', 'POST', { url });
-            if (res) {
-                showToast('Produk dihapus!', 'success');
-                // Remove from local array and re-render
-                allProducts = allProducts.filter(p => p.url !== url);
-                selectedUrls.delete(url);
-                renderProducts();
-                updateSelectionUI();
+            preview.style.display = 'grid';
+            preview.innerHTML = createProductImages.map((img, index) => `
+                <div class="image-preview">
+                    <img src="${img.data}" alt="${escapeHtml(img.name || 'Product image')}">
+                    <button type="button" onclick="removeCreateImage(${index})" aria-label="Remove image">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        async function handleEditImages(files) {
+            const incoming = Array.from(files || []).filter(file => file.type.startsWith('image/'));
+            const activeExistingCount = editExistingImages.filter(img => !img.remove).length;
+            const availableSlots = Math.max(0, 8 - activeExistingCount - editProductImages.length);
+            const selected = incoming.slice(0, availableSlots);
+
+            if (incoming.length > availableSlots) {
+                showToast('You can keep up to 8 images per product.', 'error');
+            }
+
+            for (const file of selected) {
+                const data = await fileToDataUrl(file);
+                editProductImages.push({ name: file.name, type: file.type, data });
+            }
+
+            document.getElementById('modalImageInput').value = '';
+            renderEditImagePreview();
+        }
+
+        function toggleExistingImageRemoval(index) {
+            editExistingImages[index].remove = !editExistingImages[index].remove;
+            renderEditImagePreview();
+        }
+
+        function removeNewEditImage(index) {
+            editProductImages.splice(index, 1);
+            renderEditImagePreview();
+        }
+
+        function renderEditImagePreview() {
+            const editor = document.getElementById('modalImageEditor');
+            const readOnlyImages = document.getElementById('modalImages');
+            if (!editor || !readOnlyImages) return;
+
+            const hasEditableImages = editExistingImages.length > 0 || editProductImages.length > 0;
+            editor.style.display = hasEditableImages ? 'grid' : 'none';
+            editor.innerHTML = [
+                ...editExistingImages.map((img, index) => `
+                    <div class="image-preview ${img.remove ? 'is-removing' : ''}">
+                        <img src="${escapeHtml(img.url)}" alt="Product image">
+                        <button type="button" onclick="toggleExistingImageRemoval(${index})" aria-label="${img.remove ? 'Keep image' : 'Remove image'}">${img.remove ? '+' : '&times;'}</button>
+                    </div>
+                `),
+                ...editProductImages.map((img, index) => `
+                    <div class="image-preview">
+                        <img src="${img.data}" alt="${escapeHtml(img.name || 'Product image')}">
+                        <button type="button" onclick="removeNewEditImage(${index})" aria-label="Remove image">&times;</button>
+                    </div>
+                `),
+            ].join('');
+
+            readOnlyImages.style.display = hasEditableImages ? 'none' : 'flex';
+        }
+
+        function closeCreateProduct(e) {
+            if (e.target === document.getElementById('createProductModal')) {
+                document.getElementById('createProductModal').classList.remove('active');
+            }
+        }
+
+        async function submitCreateProduct() {
+            const title = document.getElementById('cpTitle').value.trim();
+            const price = document.getElementById('cpPrice').value.trim();
+            const errEl = document.getElementById('createProductError');
+
+            if (!title) {
+                errEl.textContent = 'Product title is required.';
+                errEl.style.display = 'block';
+                document.getElementById('cpTitle').focus();
+                return;
+            }
+            if (!price || isNaN(parseFloat(price))) {
+                errEl.textContent = 'Please enter a valid price.';
+                errEl.style.display = 'block';
+                document.getElementById('cpPrice').focus();
+                return;
+            }
+            errEl.style.display = 'none';
+
+            const payload = {
+                title,
+                price: parseFloat(price),
+                item_type: document.getElementById('cpItemType').value.trim() || 'In-Game Items',
+                game_name: document.getElementById('cpGameName').value.trim() || 'Roblox In Game Items',
+                sub_game: document.getElementById('cpSubGame').value.trim(),
+                delivery_hours: parseInt(document.getElementById('cpDeliveryHours').value) || 1,
+                description: document.getElementById('cpDescription').value.trim(),
+                images: createProductImages,
+            };
+
+            const res = await api('product/create', 'POST', payload);
+            if (res && res.ok) {
+                document.getElementById('createProductModal').classList.remove('active');
+                showToast(`"${res.title}" added to product list!`, 'success');
+                await loadProducts();
+                const s = await api('status');
+                if (s) updateStatus(s);
             }
         }
 
@@ -1839,23 +3191,31 @@
             document.getElementById('modalProductUrl').value = p.url || '';
             document.getElementById('modalTitleInput').value = p.title || '';
             document.getElementById('modalPriceInput').value = p.price || '0';
-            document.getElementById('modalQty').textContent = p.quantity || '-';
-            document.getElementById('modalGame').textContent = p.game_name || '-';
-            document.getElementById('modalSubGame').textContent = p.sub_game || '-';
-            document.getElementById('modalDelivery').textContent = p.delivery_time || '-';
-            document.getElementById('modalMethod').textContent = p.delivery_method || '-';
-            document.getElementById('modalDesc').textContent = p.description || 'No description';
+            document.getElementById('modalQtyInput').value = p.quantity || 0;
+            document.getElementById('modalItemTypeInput').value = p.item_type || 'In-Game Items';
+            document.getElementById('modalGameInput').value = p.game_name || '';
+            document.getElementById('modalSubGameInput').value = p.sub_game || '';
+            document.getElementById('modalDeliveryHoursInput').value = p.delivery_hours || 0;
+            document.getElementById('modalMethodInput').value = p.delivery_method || '';
+            document.getElementById('modalDescInput').value = p.description || '';
             document.getElementById('modalScraped').textContent = p.scraped_at ? p.scraped_at.substring(0, 19) : '-';
             document.getElementById('modalLink').href = p.url;
+            editProductImages = [];
+            editExistingImages = (p.local_image_items || []).map(img => ({ ...img, remove: false }));
 
             const imagesDiv = document.getElementById('modalImages');
-            if (p.images && p.images.length > 0) {
-                imagesDiv.innerHTML = p.images.map(src =>
+            const modalImages = [
+                ...((p.local_image_urls || [])),
+                ...((p.images || [])),
+            ];
+            if (modalImages.length > 0) {
+                imagesDiv.innerHTML = modalImages.map(src =>
                     `<img src="${escapeHtml(src)}" alt="product" loading="lazy">`
                 ).join('');
             } else {
                 imagesDiv.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem">No product images found</span>';
             }
+            renderEditImagePreview();
 
             document.getElementById('modalOverlay').classList.add('active');
         }
@@ -1916,17 +3276,17 @@
         // SIDEBAR ACTIONS
         // ═══════════════════════════════════════════════════════════
         async function importFromChrome() {
-            document.getElementById('importBtn').disabled = true;
-            showToast('Mengimpor session dari Chrome/Edge...', 'info');
+            document.querySelectorAll('[data-import-session]').forEach(btn => btn.disabled = true);
+            showToast('Importing session from Chrome or Edge...', 'info');
             const res = await api('import_chrome', 'POST');
             if (res && res.ok) {
-                showToast('Session berhasil diimpor!', 'success');
+                showToast('Session import started.', 'success');
                 const s = await api('status');
                 if (s) updateStatus(s);
             } else {
-                showToast('Gagal import. Pastikan sudah login di Chrome/Edge.', 'error');
+                showToast('Import failed. Make sure you are logged in with Chrome or Edge.', 'error');
             }
-            document.getElementById('importBtn').disabled = false;
+            document.querySelectorAll('[data-import-session]').forEach(btn => btn.disabled = false);
         }
 
         async function openManualLogin() {
@@ -1950,7 +3310,6 @@
             document.getElementById('scanPublicBtn').disabled = true;
             showToast('Scanning store...', 'info');
 
-            // Tidak perlu kirim URL, server akan pakai default
             const res = await api('scan', 'POST', {});
             if (res) {
                 showToast('Scan complete!', 'success');
@@ -1962,11 +3321,12 @@
         async function scanMyProducts() {
             const s = await api('status');
             if (!s || !s.has_session) {
-                showToast('Please login first! Klik Login di sidebar.', 'error');
+                showToast('Please log in from the sidebar first.', 'error');
                 return;
             }
 
-            document.getElementById('scanPrivateBtn').disabled = true;
+            const privateBtn = document.getElementById('scanPrivateBtn');
+            if (privateBtn) privateBtn.disabled = true;
             showToast('Scanning your products...', 'info');
 
             const res = await api('scan', 'POST', { store_url: '' });  // Empty = use my-listing
@@ -1974,16 +3334,16 @@
                 showToast('Scan complete!', 'success');
                 loadProducts();
             }
-            document.getElementById('scanPrivateBtn').disabled = false;
+            if (privateBtn) privateBtn.disabled = false;
         }
 
         async function cleanDuplicates() {
-            if (!confirm('Hapus semua produk duplikat? Hanya satu produk permasing-masing judul yang akan dipertahankan.')) return;
+            if (!confirm('Remove duplicate products? Only one product per title will be kept.')) return;
 
             showToast('Cleaning duplicates...', 'info');
             const res = await api('product/clean_duplicates', 'POST', {});
             if (res && res.ok) {
-                showToast(`Berhasil menghapus ${res.removed_count} produk duplikat!`, 'success');
+                showToast(`Removed ${res.removed_count} duplicate product(s).`, 'success');
             }
         }
 
@@ -1993,7 +3353,7 @@
         async function saveSettings() {
             const data = {
                 headless: document.getElementById('headless').checked,
-                seller_url: "https://zeusx.com/seller/gstore-657837", // Fixed URL
+                seller_url: "https://zeusx.com/seller/gstore-657837",
                 interval_minutes: parseInt(document.getElementById('intervalMinutes').value) || 10,
                 use_manual_browser: document.getElementById('useManualBrowser').checked,
             };
@@ -2024,16 +3384,15 @@
             const jsonFiles = data.json_files || {};
             const hasJsonFiles = Object.values(jsonFiles).some(Boolean);
 
-            // Selalu tampilkan section data
             document.getElementById('migrationSection').style.display = 'block';
 
             // DB stats
             document.getElementById('dbStats').innerHTML =
                 `<b style="color:var(--accent)">SQLite DB</b><br>` +
-                `📦 ${stats.products || 0} produk &nbsp;|&nbsp; ` +
-                `⚙️ ${stats.config_keys || 0} config &nbsp;|&nbsp; ` +
-                `🔐 ${stats.has_auth ? 'session ada' : 'no session'}<br>` +
-                `💾 ${stats.db_size_kb || 0} KB`;
+                `${stats.products || 0} products &nbsp;|&nbsp; ` +
+                `${stats.config_keys || 0} config keys &nbsp;|&nbsp; ` +
+                `${stats.has_auth ? 'session saved' : 'no session'}<br>` +
+                `${stats.db_size_kb || 0} KB database size`;
 
             // Migration alert & button
             if (hasJsonFiles) {
@@ -2054,28 +3413,28 @@
             const btn = document.getElementById('migrateBtn');
             const resultEl = document.getElementById('migrationResult');
             btn.disabled = true;
-            btn.textContent = '⏳ Migrating…';
+            btn.textContent = 'Migrating...';
             resultEl.style.display = 'none';
 
             const res = await fetch('/api/migrate', { method: 'POST' });
             const data = await res.json();
 
             btn.disabled = false;
-            btn.textContent = '📥 Migrasi JSON → SQLite';
+            btn.textContent = 'Migrate JSON to SQLite';
 
             resultEl.style.display = 'block';
             if (data.ok && data.migrated && data.migrated.length > 0) {
                 resultEl.innerHTML =
-                    `<div style="color:var(--green)">✅ Berhasil:<br>${data.migrated.join('<br>')}</div>` +
-                    `<div style="color:var(--text-muted);margin-top:4px;">File JSON lama bisa kamu hapus manual setelah verifikasi.</div>`;
-                showToast('Migrasi berhasil!', 'success');
+                    `<div style="color:var(--green)">Migrated:<br>${data.migrated.join('<br>')}</div>` +
+                    `<div style="color:var(--text-muted);margin-top:4px;">You can remove legacy JSON files after verifying the database.</div>`;
+                showToast('Migration complete.', 'success');
                 await loadDbStatus();
                 await loadProducts();
             } else if (data.errors && data.errors.length > 0) {
-                resultEl.innerHTML = `<div style="color:var(--red)">❌ Error:<br>${data.errors.join('<br>')}</div>`;
-                showToast('Migrasi gagal!', 'error');
+                resultEl.innerHTML = `<div style="color:var(--red)">Error:<br>${data.errors.join('<br>')}</div>`;
+                showToast('Migration failed.', 'error');
             } else {
-                resultEl.innerHTML = `<div style="color:var(--text-muted)">Tidak ada data baru untuk dimigrasikan.</div>`;
+                resultEl.innerHTML = `<div style="color:var(--text-muted)">No new data to migrate.</div>`;
             }
         }
 

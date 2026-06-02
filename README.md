@@ -8,7 +8,7 @@ Bot otomasi yang dibuat untuk membantu seller di ZeusX melakukan *re-list* (hapu
 
 - **Web UI Modern**: Interface yang elegan dan responsif dengan status *real-time*.
 - **Otomatisasi Penuh**: Mengambil *(scrape)* detail produk, gambar, dan membuat listing baru persis seperti halaman asli di website (mencakup Kategori, Game Utama, Harga, Stok, Game Spesifik, dan Waktu Pengiriman).
-- **Manual Mode / One-Click Run**: Cukup klik Start sekali, dan bot akan me-relisting semua produk yang aktif.
+- **Manual Mode / One-Click Run**: Cukup klik Start sekali, dan bot akan me-Listing semua produk yang aktif.
 - **Bypass Proteksi Anti-Bot**: Menggunakan engine Chromium *Playwright* khusus.
 
 ---

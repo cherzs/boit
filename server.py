@@ -1,5 +1,5 @@
 """
-server.py — ZeusX Auto Re-Lister Web Server
+server.py — ZeusX Auto Listing Web Server
 =============================================
 Flask backend with SocketIO for real-time log streaming.
 
@@ -13,6 +13,9 @@ API:
   POST /api/product/toggle  → enable/disable a product
 """
 
+import base64
+import os
+import re
 import threading
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
@@ -52,6 +55,37 @@ def log_callback(message: str):
 
     socketio.emit("log", {"message": message})
     socketio.emit("status_update", _build_status())
+
+
+def _save_uploaded_images(image_items) -> list:
+    """Save base64 image payloads from the dashboard and return local paths."""
+    import uuid
+
+    saved_images = []
+    if not isinstance(image_items, list):
+        return saved_images
+
+    os.makedirs(engine.IMAGES_DIR, exist_ok=True)
+    for item in image_items[:8]:
+        if not isinstance(item, dict):
+            continue
+        raw = item.get("data") or ""
+        match = re.match(r"^data:image/(png|jpe?g|webp);base64,(.+)$", raw, re.IGNORECASE)
+        if not match:
+            continue
+        ext = "jpg" if match.group(1).lower() in ("jpg", "jpeg") else match.group(1).lower()
+        try:
+            image_bytes = base64.b64decode(match.group(2), validate=True)
+        except Exception:
+            continue
+        if not image_bytes:
+            continue
+        filename = f"manual_{uuid.uuid4().hex[:16]}.{ext}"
+        path = os.path.join(engine.IMAGES_DIR, filename)
+        with open(path, "wb") as f:
+            f.write(image_bytes)
+        saved_images.append(path)
+    return saved_images
 
 
 def _build_status() -> dict:
@@ -97,15 +131,19 @@ def api_products():
     for p in products:
         # Only count actual product images (cdn-offer-photos), not avatars/tracking
         offer_images = [img for img in p.get("images", []) if "cdn-offer-photos" in img]
+        local_images = p.get("local_images", []) or []
         safe.append({
             "url": p.get("url", ""),
             "title": p.get("title", "Untitled"),
             "price": p.get("price", "-"),
             "description": (p.get("description", "") or "")[:150],
+            "game_name": p.get("game_name", ""),
+            "item_type": p.get("item_type", "In-Game Items"),
+            "sub_game": p.get("sub_game", ""),
             "enabled": p.get("enabled", True),
             "last_relisted": p.get("last_relisted"),
-            "image_count": len(offer_images),
-            "local_images": p.get("local_images", []),  # Include local image paths
+            "image_count": len(offer_images) + len(local_images),
+            "local_images": local_images,
         })
     return jsonify(safe)
 
@@ -116,6 +154,17 @@ def api_product_detail():
     for p in products:
         if p.get("url") == url:
             offer_images = [img for img in p.get("images", []) if "cdn-offer-photos" in img]
+            local_images = p.get("local_images", []) or []
+            local_image_urls = []
+            for path in local_images:
+                filename = os.path.basename(path)
+                if filename:
+                    local_image_urls.append(f"/images/{filename}")
+            local_image_items = [
+                {"path": path, "url": f"/images/{os.path.basename(path)}"}
+                for path in local_images
+                if os.path.basename(path)
+            ]
             return jsonify({
                 "url": p.get("url", ""),
                 "title": p.get("title", "Untitled"),
@@ -123,14 +172,18 @@ def api_product_detail():
                 "description": p.get("description", ""),
                 "images": offer_images,
                 "all_images": p.get("images", []),
-                "local_images": len(p.get("local_images", [])),
+                "local_images": len(local_images),
+                "local_image_urls": local_image_urls,
+                "local_image_items": local_image_items,
                 "enabled": p.get("enabled", True),
                 "last_relisted": p.get("last_relisted"),
                 "scraped_at": p.get("scraped_at", ""),
                 "quantity": p.get("quantity", "-"),
                 "game_name": p.get("game_name", "-"),
+                "item_type": p.get("item_type", "In-Game Items"),
                 "sub_game": p.get("sub_game", "-"),
                 "delivery_time": p.get("delivery_time", "-"),
+                "delivery_hours": p.get("delivery_hours", 0),
                 "delivery_method": p.get("delivery_method", "-"),
             })
     return jsonify({"error": "Product not found"}), 404
@@ -171,13 +224,21 @@ def api_scan():
         store_url = "https://zeusx.com/seller/gstore-657837"  # Default URL
 
     def do_scan():
-        engine.scan_all_products(
-            headless=cfg.get("headless", False),
-            log_cb=log_callback,
-            store_url=store_url,
-        )
-        socketio.emit("products_updated", True)
-        socketio.emit("status_update", _build_status())
+        try:
+            engine.scan_all_products(
+                headless=cfg.get("headless", False),
+                log_cb=log_callback,
+                store_url=store_url,
+            )
+        except FileNotFoundError as exc:
+            log_callback(f"Scan failed: Playwright is not installed correctly ({exc})")
+            log_callback("Run: ./venv/bin/python -m pip install --force-reinstall playwright playwright-stealth")
+            log_callback("Then run: ./venv/bin/python -m playwright install chromium")
+        except Exception as exc:
+            log_callback(f"Scan failed: {exc}")
+        finally:
+            socketio.emit("products_updated", True)
+            socketio.emit("status_update", _build_status())
 
     t = threading.Thread(target=do_scan, daemon=True)
     t.start()
@@ -292,17 +353,48 @@ def api_update_product():
     for p in products:
         if p.get("url", "").strip() == url:
             if "title" in data:
-                p["title"] = data["title"]
+                p["title"] = (data["title"] or "").strip()
             if "price" in data:
                 try:
                     p["price"] = float(data["price"])
                 except:
                     pass
+            if "description" in data:
+                p["description"] = data.get("description", "")
+            if "game_name" in data:
+                p["game_name"] = data.get("game_name", "")
+            if "item_type" in data:
+                p["item_type"] = data.get("item_type", "In-Game Items") or "In-Game Items"
+            if "sub_game" in data:
+                p["sub_game"] = data.get("sub_game", "")
+            if "quantity" in data:
+                try:
+                    p["quantity"] = int(data.get("quantity") or 0)
+                except Exception:
+                    pass
+            if "delivery_method" in data:
+                p["delivery_method"] = data.get("delivery_method", "")
+            if "delivery_hours" in data:
+                try:
+                    p["delivery_hours"] = int(data.get("delivery_hours") or 0)
+                except Exception:
+                    pass
+            if "local_images_keep" in data:
+                keep = data.get("local_images_keep") or []
+                if isinstance(keep, list):
+                    current = p.get("local_images", []) or []
+                    keep_set = {str(path) for path in keep}
+                    p["local_images"] = [path for path in current if path in keep_set]
+            new_images = _save_uploaded_images(data.get("new_images") or [])
+            if new_images:
+                p["local_images"] = (p.get("local_images", []) or []) + new_images
             updated = True
             break
             
     if updated:
         engine.save_products(products)
+        socketio.emit("products_updated", True)
+        socketio.emit("status_update", _build_status())
         return jsonify({"ok": True})
         
     return jsonify({"error": "Product not found"}), 404
@@ -357,9 +449,9 @@ def api_import_chrome():
         success = engine.import_session_from_chrome(log_cb=log_callback)
         socketio.emit("status_update", _build_status())
         if success:
-            log_callback("✅ Session berhasil diimpor dari Chrome/Edge")
+            log_callback("Session imported from Chrome/Edge")
         else:
-            log_callback("❌ Gagal import session. Pastikan kamu sudah login di Chrome/Edge.")
+            log_callback("Session import failed. Make sure you are logged in with Chrome/Edge.")
 
     t = threading.Thread(target=do_import, daemon=True)
     t.start()
@@ -372,6 +464,58 @@ def api_logout():
     log_callback("🗑️ Session cleared")
     socketio.emit("status_update", _build_status())
     return jsonify({"ok": True})
+
+
+@app.route("/api/product/create", methods=["POST"])
+def api_create_product():
+    data = request.json or {}
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+
+    import uuid
+    saved_images = _save_uploaded_images(data.get("images") or [])
+
+    product = {
+        "url": f"local://{uuid.uuid4().hex[:16]}",
+        "title": title,
+        "price": str(data.get("price", "0")),
+        "description": data.get("description", ""),
+        "game_name": data.get("game_name", "Roblox In Game Items"),
+        "item_type": data.get("item_type", "In-Game Items") or "In-Game Items",
+        "sub_game": data.get("sub_game", ""),
+        "delivery_time": "",
+        "delivery_hours": int(data.get("delivery_hours") or 1),
+        "delivery_days": int(data.get("delivery_days") or 0),
+        "delivery_method": "",
+        "quantity": 20,
+        "enabled": True,
+        "images": [],
+        "local_images": saved_images,
+        "scraped_at": datetime.now().isoformat(),
+        "last_relisted": None,
+    }
+    db.upsert_product(product)
+    socketio.emit("products_updated", True)
+    socketio.emit("status_update", _build_status())
+    return jsonify({"ok": True, "url": product["url"], "title": product["title"]})
+
+
+@app.route("/api/product/toggle_selected", methods=["POST"])
+def api_toggle_selected():
+    data = request.json or {}
+    urls = data.get("urls", [])
+    enable = data.get("enable", True)
+    if not urls:
+        return jsonify({"error": "No URLs provided"}), 400
+    urls_set = set(urls)
+    products = engine.load_products()
+    for p in products:
+        if p.get("url") in urls_set:
+            p["enabled"] = bool(enable)
+    engine.save_products(products)
+    socketio.emit("status_update", _build_status())
+    return jsonify({"ok": True, "count": len(urls_set)})
 
 
 @app.route("/api/migrate", methods=["POST"])
@@ -415,5 +559,5 @@ def serve_image(filename):
 # Run
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    print("ZeusX Auto Re-Lister running at http://localhost:8000")
+    print("ZeusX Auto Listing running at http://localhost:8000")
     socketio.run(app, host="0.0.0.0", port=8000, debug=False)

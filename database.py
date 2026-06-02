@@ -1,5 +1,5 @@
 """
-database.py — SQLite layer for ZeusX Auto Re-Lister
+database.py — SQLite layer for ZeusX Auto Listing
 =====================================================
 Single source of truth untuk semua data:
   - config   : konfigurasi bot
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS products (
     images          TEXT DEFAULT '[]',
     local_images    TEXT DEFAULT '[]',
     game_name       TEXT DEFAULT '',
+    item_type       TEXT DEFAULT 'In-Game Items',
     sub_game        TEXT DEFAULT '',
     delivery_time   TEXT DEFAULT '',
     delivery_hours  INTEGER DEFAULT 0,
@@ -72,6 +73,9 @@ def _conn():
 def init_db():
     with _conn() as con:
         con.executescript(SCHEMA)
+        cols = {row["name"] for row in con.execute("PRAGMA table_info(products)").fetchall()}
+        if "item_type" not in cols:
+            con.execute("ALTER TABLE products ADD COLUMN item_type TEXT DEFAULT 'In-Game Items'")
 
 
 # ─── Config ──────────────────────────────────────────────────────────────────
@@ -135,6 +139,7 @@ def _product_params(p: dict) -> dict:
         "images":          json.dumps(p.get("images", [])),
         "local_images":    json.dumps(p.get("local_images", [])),
         "game_name":       p.get("game_name", ""),
+        "item_type":       p.get("item_type", "In-Game Items"),
         "sub_game":        p.get("sub_game", ""),
         "delivery_time":   p.get("delivery_time", ""),
         "delivery_hours":  int(p.get("delivery_hours", 0)),
@@ -151,13 +156,13 @@ _UPSERT_SQL = """
 INSERT INTO products (
     url, title, price, description,
     images, local_images,
-    game_name, sub_game,
+    game_name, item_type, sub_game,
     delivery_time, delivery_hours, delivery_days, delivery_method,
     quantity, enabled, last_relisted, scraped_at
 ) VALUES (
     :url, :title, :price, :description,
     :images, :local_images,
-    :game_name, :sub_game,
+    :game_name, :item_type, :sub_game,
     :delivery_time, :delivery_hours, :delivery_days, :delivery_method,
     :quantity, :enabled, :last_relisted, :scraped_at
 )
@@ -168,6 +173,7 @@ ON CONFLICT(url) DO UPDATE SET
     images          = excluded.images,
     local_images    = excluded.local_images,
     game_name       = excluded.game_name,
+    item_type       = excluded.item_type,
     sub_game        = excluded.sub_game,
     delivery_time   = excluded.delivery_time,
     delivery_hours  = excluded.delivery_hours,
